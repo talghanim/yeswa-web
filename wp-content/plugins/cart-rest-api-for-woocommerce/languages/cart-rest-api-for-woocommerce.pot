@@ -1,0 +1,184 @@
+# Copyright (C) 2019 Sébastien Dumont
+# This file is distributed under the GNU General Public License v3.0.
+msgid ""
+msgstr ""
+"Project-Id-Version: CoCart 1.0.9\n"
+"Report-Msgid-Bugs-To: https://github.com/co-cart/co-cart/issues\n"
+"POT-Creation-Date: 2019-04-05 14:24:09+00:00\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"PO-Revision-Date: 2019-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: Sébastien Dumont <mailme@sebastiendumont.com>\n"
+"Language: en_US\n"
+"X-Generator: grunt-wp-i18n 1.0.3\n"
+
+#: cart-rest-api-for-woocommerce.php:79
+msgid "Cloning this object is forbidden."
+msgstr ""
+
+#: cart-rest-api-for-woocommerce.php:90
+msgid "Unserializing instances of this class is forbidden."
+msgstr ""
+
+#: cart-rest-api-for-woocommerce.php:147
+msgid "%1$s requires at least %2$s v%3$s or higher."
+msgstr ""
+
+#: cart-rest-api-for-woocommerce.php:189
+msgid "View CoCart Documentation"
+msgstr ""
+
+#: cart-rest-api-for-woocommerce.php:189
+msgid "Documentation"
+msgstr ""
+
+#: cart-rest-api-for-woocommerce.php:190
+msgid "Create a support ticket for CoCart"
+msgstr ""
+
+#: cart-rest-api-for-woocommerce.php:190
+msgid "Support"
+msgstr ""
+
+#: cart-rest-api-for-woocommerce.php:191
+msgid "Review CoCart on WordPress.org"
+msgstr ""
+
+#: cart-rest-api-for-woocommerce.php:191
+msgid "Leave a Review"
+msgstr ""
+
+#: includes/api/class-wc-rest-cart-controller.php:122
+msgid "The cart item key is what identifies the item in the cart."
+msgstr ""
+
+#: includes/api/class-wc-rest-cart-controller.php:201
+msgid "There are no items in the cart!"
+msgstr ""
+
+#: includes/api/class-wc-rest-cart-controller.php:220
+msgid "Cart is cleared."
+msgstr ""
+
+#: includes/api/class-wc-rest-cart-controller.php:222
+msgid "Clearing the cart failed!"
+msgstr ""
+
+#: includes/api/class-wc-rest-cart-controller.php:236
+msgid "Product ID number is required!"
+msgstr ""
+
+#: includes/api/class-wc-rest-cart-controller.php:240
+msgid "Product ID must be numeric!"
+msgstr ""
+
+#: includes/api/class-wc-rest-cart-controller.php:254
+msgid "Quantity must be numeric!"
+msgstr ""
+
+#: includes/api/class-wc-rest-cart-controller.php:291
+#: includes/api/class-wc-rest-cart-controller.php:345
+#. translators: 1: product name 2: quantity in stock
+msgid ""
+"You cannot add that amount of &quot;%1$s&quot; to the cart because there is "
+"not enough stock (%2$s remaining)."
+msgstr ""
+
+#: includes/api/class-wc-rest-cart-controller.php:317
+msgid "Warning: This product does not exist!"
+msgstr ""
+
+#: includes/api/class-wc-rest-cart-controller.php:330
+#. translators: %s: product name
+msgid "You cannot add another \"%s\" to your cart."
+msgstr ""
+
+#: includes/api/class-wc-rest-cart-controller.php:336
+msgid "Sorry, this product cannot be purchased."
+msgstr ""
+
+#: includes/api/class-wc-rest-cart-controller.php:341
+msgid ""
+"You cannot add &quot;%s&quot; to the cart because the product is out of "
+"stock."
+msgstr ""
+
+#: includes/api/class-wc-rest-cart-controller.php:356
+msgid ""
+"You cannot add that amount to the cart &mdash; we have %1$s in stock and "
+"you already have %2$s in your cart."
+msgstr ""
+
+#: includes/api/class-wc-rest-cart-controller.php:378
+msgid "You cannot add \"%s\" to your cart."
+msgstr ""
+
+#: includes/api/class-wc-rest-cart-controller.php:396
+msgid "Item has been removed from cart."
+msgstr ""
+
+#: includes/api/class-wc-rest-cart-controller.php:398
+msgid "Unable to remove item from cart."
+msgstr ""
+
+#: includes/api/class-wc-rest-cart-controller.php:401
+#: includes/api/class-wc-rest-cart-controller.php:424
+#: includes/api/class-wc-rest-cart-controller.php:473
+msgid "Cart item key is required!"
+msgstr ""
+
+#: includes/api/class-wc-rest-cart-controller.php:419
+msgid "Item has been restored to the cart."
+msgstr ""
+
+#: includes/api/class-wc-rest-cart-controller.php:421
+msgid "Unable to restore item to the cart."
+msgstr ""
+
+#: includes/api/class-wc-rest-cart-controller.php:463
+msgid "The quantity for \"%1$s\" has increased to \"%2$s\"."
+msgstr ""
+
+#: includes/api/class-wc-rest-cart-controller.php:465
+msgid "The quantity for \"%1$s\" has decreased to \"%2$s\"."
+msgstr ""
+
+#: includes/api/class-wc-rest-cart-controller.php:467
+msgid "The quantity for \"%s\" has not changed."
+msgstr ""
+
+#: includes/api/class-wc-rest-cart-controller.php:470
+msgid "Unable to update item quantity in cart."
+msgstr ""
+
+#: includes/api/class-wc-rest-cart-controller.php:486
+msgid "No items in cart to calculate totals."
+msgstr ""
+
+#: includes/api/class-wc-rest-cart-controller.php:491
+msgid "Cart totals have been calculated."
+msgstr ""
+
+#. Plugin Name of the plugin/theme
+msgid "CoCart"
+msgstr ""
+
+#. Plugin URI of the plugin/theme
+msgid "https://cocart.xyz"
+msgstr ""
+
+#. Description of the plugin/theme
+msgid ""
+"A REST-API for WooCommerce that enables the ability to add, view, update "
+"and delete items from the cart."
+msgstr ""
+
+#. Author of the plugin/theme
+msgid "Sébastien Dumont"
+msgstr ""
+
+#. Author URI of the plugin/theme
+msgid "https://sebastiendumont.com"
+msgstr ""
