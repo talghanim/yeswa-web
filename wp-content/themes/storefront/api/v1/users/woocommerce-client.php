@@ -4,7 +4,7 @@ require_once ('../vendor/autoload.php');
 use Automattic\WooCommerce\Client;
 //$host = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://$_SERVER[HTTP_HOST]";	
 //echo "<pre>"; print_r(site_url()); echo "<br/>";
-$url = site_url();
+$url = site_url().'/index.php/';
 $woocommerce = new Client(
     $url, // Your store URL    
     'ck_8dce4ce56de21ee47d30a362bd01f9789e936932', // Your consumer key
