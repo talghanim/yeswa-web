@@ -10,6 +10,23 @@
  */
 class MailChimp_Newsletter extends MailChimp_WooCommerce_Options
 {
+    /** @var null|static */
+    protected static $_instance = null;
+
+    /**
+     * @return MailChimp_Newsletter
+     */
+    public static function instance()
+    {
+        if (!empty(static::$_instance)) {
+            return static::$_instance;
+        }
+        $env = mailchimp_environment_variables();
+        static::$_instance = new MailChimp_Newsletter();
+        static::$_instance->setVersion($env->version);
+        return static::$_instance;
+    }
+
     /**
      * @param WC_Checkout $checkout
      */
@@ -23,7 +40,7 @@ class MailChimp_Newsletter extends MailChimp_WooCommerce_Options
             }
 
             // allow the user to specify the text in the newsletter label.
-            $label = $this->getOption('newsletter_label', 'Subscribe to our newsletter');
+            $label = $this->getOption('newsletter_label', __('Subscribe to our newsletter', 'mc-woocommerce'));
 
             // if the user chose 'check' or nothing at all, we default to true.
             $default_checked = $default_setting === 'check';
@@ -45,11 +62,11 @@ class MailChimp_Newsletter extends MailChimp_WooCommerce_Options
             // echo out the checkbox.
             $checkbox = '<p class="form-row form-row-wide mailchimp-newsletter">';
             $checkbox .= '<input class="woocommerce-form__input woocommerce-form__input-checkbox input-checkbox" id="mailchimp_woocommerce_newsletter" type="checkbox" name="mailchimp_woocommerce_newsletter" value="1"'.($status ? ' checked="checked"' : '').'> ';
-            $checkbox .= '<label for="mailchimp_woocommerce_newsletter" class="woocommerce-form__label woocommerce-form__label-for-checkbox inline"><span>' . __($label, 'mailchimp-woocommerce') . '</span></label>';
+            $checkbox .= '<label for="mailchimp_woocommerce_newsletter" class="woocommerce-form__label woocommerce-form__label-for-checkbox inline"><span>' . $label . '</span></label>';
             $checkbox .= '</p>';
             $checkbox .= '<div class="clear"></div>';
 
-            echo $checkbox;
+            echo apply_filters( 'mailchimp_woocommerce_newsletter_field', $checkbox, $status, $label);
         }
     }
 
@@ -90,15 +107,26 @@ class MailChimp_Newsletter extends MailChimp_WooCommerce_Options
      */
     protected function handleStatus($order_id = null)
     {
-        $status = isset($_POST['mailchimp_woocommerce_newsletter']) ? (int)$_POST['mailchimp_woocommerce_newsletter'] : 0;
+        $post_key = 'mailchimp_woocommerce_newsletter';
+        $meta_key = 'mailchimp_woocommerce_is_subscribed';
+        $logged_in = is_user_logged_in();
 
-        if ($order_id) {
-            update_post_meta($order_id, 'mailchimp_woocommerce_is_subscribed', $status);
+        // if the post key is available we use it - otherwise we null it out.
+        $status = isset($_POST[$post_key]) ? (int) $_POST[$post_key] : null;
+
+        // if the status is null, we don't do anything
+        if ($status === null) {
+            return false;
         }
 
-        if (is_user_logged_in()) {
-            update_user_meta(get_current_user_id(), 'mailchimp_woocommerce_is_subscribed', $status);
-            
+        // if we passed in an order id, we update it here.
+        if ($order_id) {
+            update_post_meta($order_id, $meta_key, $status);
+        }
+
+        // if the user is logged in, we will update the status correctly.
+        if ($logged_in) {
+            update_user_meta(get_current_user_id(), $meta_key, $status);
             return $status;
         }
 

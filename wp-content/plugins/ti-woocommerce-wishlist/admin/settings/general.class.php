@@ -25,6 +25,41 @@ class TInvWL_Admin_Settings_General extends TInvWL_Admin_BaseSection {
 	public $priority = 20;
 
 	/**
+	 * This class
+	 *
+	 * @var \TInvWL_Admin_Settings_General
+	 */
+	protected static $_instance = null;
+
+	/**
+	 * Get this class object
+	 *
+	 * @param string $plugin_name Plugin name.
+	 *
+	 * @return \TInvWL_Admin_Settings_General
+	 */
+	public static function instance( $plugin_name = TINVWL_PREFIX, $plugin_version = TINVWL_FVERSION ) {
+		if ( is_null( self::$_instance ) ) {
+			self::$_instance = new self( $plugin_name, $plugin_version );
+		}
+
+		return self::$_instance;
+	}
+
+	/**
+	 * Constructor
+	 *
+	 * @param string $plugin_name Plugin name.
+	 * @param string $version Plugin version.
+	 */
+	function __construct( $plugin_name, $version ) {
+		$this->_name    = $plugin_name;
+		$this->_version = $version;
+		parent::__construct( $plugin_name, $version );
+		add_action( 'tinvwl_section_before', array( $this, 'premium_features' ), 9 );
+	}
+
+	/**
 	 * Menu array
 	 *
 	 * @return array
@@ -59,8 +94,7 @@ class TInvWL_Admin_Settings_General extends TInvWL_Admin_BaseSection {
 	 * @return array
 	 */
 	function constructor_data() {
-		add_action( $this->_name . '_section_before', array( $this, 'premium_features' ), 9 );
-		$lists     = get_pages( array( 'number' => 999999 ) ); // @codingStandardsIgnoreLine WordPress.VIP.RestrictedFunctions.get_pages
+		$lists     = get_pages( array( 'number' => 9999999 ) ); // @codingStandardsIgnoreLine WordPress.VIP.RestrictedFunctions.get_pages
 		$page_list = array( '' => '' );
 		$menus     = $this->get_wp_menus();
 		foreach ( $lists as $list ) {
@@ -194,6 +228,20 @@ class TInvWL_Admin_Settings_General extends TInvWL_Admin_BaseSection {
 						'desc'  => __( 'This notification will be shown once the product is removed from Wishlist on a single or a catalog page.', 'ti-woocommerce-wishlist' ),
 						'std'   => 'Product removed from Wishlist',
 						'class' => 'tiwl-button-show-notice tiwl-general-simple-flow',
+					),
+				),
+			),
+			array(
+				'id'         => 'permalinks',
+				'title'      => __( 'Permalinks Settings', 'ti-woocommerce-wishlist' ),
+				'show_names' => false,
+				'fields'     => array(
+					array(
+						'type' => 'checkboxonoff',
+						'name' => 'force',
+						'text' => __( 'Force permalinks rewrite', 'ti-woocommerce-wishlist' ),
+						'desc' => __( 'This option should be enabled to avoid any issues with URL rewrites between other plugins and Wishlist', 'ti-woocommerce-wishlist' ),
+						'std'  => false,
 					),
 				),
 			),
@@ -354,6 +402,23 @@ class TInvWL_Admin_Settings_General extends TInvWL_Admin_BaseSection {
 						'std'  => 'Add to Wishlist',
 					),
 					array(
+						'type'  => 'checkboxonoff',
+						'name'  => 'already_on',
+						'text'  => __( 'Show "Already In Wishlist" button Text', 'ti-woocommerce-wishlist' ),
+						'std'   => false,
+						'extra' => array(
+							'tiwl-show' => '.tiwl-button-already-on',
+						),
+						'class' => 'tiwl-general-simple-flow-hide',
+					),
+					array(
+						'type'  => 'text',
+						'name'  => 'text_already_on',
+						'text'  => __( '"Already In Wishlist" button Text', 'ti-woocommerce-wishlist' ),
+						'std'   => 'Already In Wishlist',
+						'class' => 'tiwl-button-already-on tiwl-general-simple-flow-hide',
+					),
+					array(
 						'type'  => 'text',
 						'name'  => 'text_remove',
 						'text'  => __( '"Remove from Wishlist" Button Text', 'ti-woocommerce-wishlist' ),
@@ -475,6 +540,23 @@ class TInvWL_Admin_Settings_General extends TInvWL_Admin_BaseSection {
 						'name' => 'text',
 						'text' => __( '"Add to Wishlist" Text', 'ti-woocommerce-wishlist' ),
 						'std'  => 'Add to Wishlist',
+					),
+					array(
+						'type'  => 'checkboxonoff',
+						'name'  => 'already_on',
+						'text'  => __( 'Show "Already In Wishlist" button Text', 'ti-woocommerce-wishlist' ),
+						'std'   => false,
+						'extra' => array(
+							'tiwl-show' => '.tiwl-button-already-on-catalog',
+						),
+						'class' => 'tiwl-general-simple-flow-hide',
+					),
+					array(
+						'type'  => 'text',
+						'name'  => 'text_already_on',
+						'text'  => __( '"Already In Wishlist" button Text', 'ti-woocommerce-wishlist' ),
+						'std'   => 'Already In Wishlist',
+						'class' => 'tiwl-button-already-on-catalog tiwl-general-simple-flow-hide',
 					),
 					array(
 						'type'  => 'text',
@@ -620,8 +702,14 @@ class TInvWL_Admin_Settings_General extends TInvWL_Admin_BaseSection {
 					),
 					array(
 						'type' => 'checkboxonoff',
-						'name' => 'google',
-						'text' => __( 'Show "Google+" Button', 'ti-woocommerce-wishlist' ),
+						'name' => 'whatsapp',
+						'text' => __( 'Show "WhatsApp" Button', 'ti-woocommerce-wishlist' ),
+						'std'  => true,
+					),
+					array(
+						'type' => 'checkboxonoff',
+						'name' => 'clipboard',
+						'text' => __( 'Show "Copy to clipboard" Button', 'ti-woocommerce-wishlist' ),
 						'std'  => true,
 					),
 					array(
@@ -838,7 +926,7 @@ class TInvWL_Admin_Settings_General extends TInvWL_Admin_BaseSection {
 		tinv_update_option( 'processing', 'redirect_checkout', $data['general']['processing_redirect_checkout'] );
 		tinv_update_option( 'processing', 'autoremove_status', 'tinvwl-addcart' );
 		if ( filter_input( INPUT_POST, 'save_buttons-setting_reset' ) ) {
-			foreach ( $data as $key => $value ) {
+			foreach ( array_keys( $data ) as $key ) {
 				if ( ! in_array( $key, array( 'page' ) ) ) {
 					$data[ $key ] = array();
 				}
@@ -852,6 +940,9 @@ class TInvWL_Admin_Settings_General extends TInvWL_Admin_BaseSection {
 	 * Show Premium Features sections
 	 */
 	function premium_features() {
-		TInvWL_View::view( 'premium-features' );
+		global $current_screen;
+		if ( is_object( $current_screen ) && 'toplevel_page_tinvwl' === $current_screen->id ) {
+			TInvWL_View::view( 'premium-features' );
+		}
 	}
 }

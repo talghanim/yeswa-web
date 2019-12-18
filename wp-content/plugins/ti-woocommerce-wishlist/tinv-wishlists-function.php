@@ -12,8 +12,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 
-
-
 if ( ! function_exists( 'tinv_get_option' ) ) {
 
 	/**
@@ -156,9 +154,15 @@ if ( ! function_exists( 'tinv_wishlist_locate_template' ) ) {
 	 * @param string $template_path Template path.
 	 * @param string $default_path Template default path.
 	 *
-	 * @return string
+	 * @return mixed
 	 */
 	function tinv_wishlist_locate_template( $template_name, $template_path = '', $default_path = '' ) {
+		$prefix = 'ti-';
+
+		if ( substr( basename( $template_name ), 0, strlen( $prefix ) ) !== $prefix ) {
+			return;
+		}
+
 		if ( ! $template_path ) {
 			$template_path = WC()->template_path();
 		}
@@ -261,7 +265,7 @@ if ( ! function_exists( 'tinv_wishlist_get_item_data' ) ) {
 		} // End if().
 
 		// Filter item data to allow 3rd parties to add more to the array.
-		$item_data = apply_filters( 'tinv_wishlist_get_item_data', $item_data, $product );
+		$item_data = apply_filters( 'tinvwl_wishlist_get_item_data', $item_data, $product );
 
 		// Format item data ready to display.
 		foreach ( $item_data as $key => $data ) {
@@ -378,7 +382,7 @@ if ( ! function_exists( 'tinv_url_wishlist_by_key' ) ) {
 		}
 
 		if ( 1 < $paged ) {
-			$link = add_query_arg( 'paged', $paged, $link );
+			$link = add_query_arg( 'wl_paged', $paged, $link );
 		}
 
 		if ( $share_key ) {
@@ -396,7 +400,6 @@ if ( ! function_exists( 'tinv_url_wishlist_by_key' ) ) {
 				$link = add_query_arg( 'tinvwlID', $share_key, $link );
 			}
 		}
-
 
 		return $link;
 	}
@@ -429,13 +432,13 @@ if ( ! function_exists( 'tinv_wishlist_status' ) ) {
 	/**
 	 * Check status free or premium plugin and disable free
 	 *
-	 * @global string $status
-	 * @global string $page
-	 * @global string $s
-	 *
 	 * @param string $transient Plugin transient name.
 	 *
 	 * @return string
+	 * @global string $s
+	 *
+	 * @global string $status
+	 * @global string $page
 	 */
 	function tinv_wishlist_status( $transient ) {
 		if ( TINVWL_LOAD_FREE === $transient ) {
@@ -613,13 +616,15 @@ if ( ! function_exists( 'tinvwl_add_to_cart_need_redirect' ) ) {
 			return true;
 		}
 
-		$need_url_data = array_filter( array_merge( array(
+		$need_url_data = array_merge( array(
 			'variation_id' => ( version_compare( WC_VERSION, '3.0.0', '<' ) ? $_product->variation_id : ( $_product->is_type( 'variation' ) ? $_product->get_id() : 0 ) ),
-			'add-to-cart'  => ( version_compare( WC_VERSION, '3.0.0', '<' ) ? $_product->get_id() : ( $_product->is_type( 'variation' ) ? $_product->get_parent_id() : $_product->get_id() ) ),
-		), array_map( 'urlencode', ( version_compare( WC_VERSION, '3.0.0', '<' ) ? ( is_array( $_product->variation_data ) ? $_product->variation_data : array() ) : array() ) ) ) );
+			'add-to-cart'  => ( version_compare( WC_VERSION, '3.0.0', '<' ) ? $_product->id : ( $_product->is_type( 'variation' ) ? $_product->get_parent_id() : $_product->get_id() ) ),
+		), array_map( 'urlencode', ( version_compare( WC_VERSION, '3.0.0', '<' ) ? ( is_array( $_product->variation_data ) ? $_product->variation_data : array() ) : array() ) ) );
 
-		$need_url      = apply_filters( 'woocommerce_product_add_to_cart_url1', remove_query_arg( 'added-to-cart', add_query_arg( $need_url_data ) ), $_product );
-		$need_url_full = apply_filters( 'woocommerce_product_add_to_cart_url1', remove_query_arg( 'added-to-cart', add_query_arg( $need_url_data, $_product->get_permalink() ) ), $_product );
+		$need_url_data = version_compare( WC_VERSION, '3.0.0', '<' ) ? $need_url_data : array_filter( $need_url_data );
+
+		$need_url      = apply_filters( 'tinvwl_product_add_to_cart_redirect_slug_original', remove_query_arg( 'added-to-cart', ( version_compare( WC_VERSION, '3.8.0', '<' ) ? add_query_arg( $need_url_data ) : add_query_arg( $need_url_data, '' ) ) ), $_product );
+		$need_url_full = apply_filters( 'tinvwl_product_add_to_cart_redirect_url_original', remove_query_arg( 'added-to-cart', add_query_arg( $need_url_data, $_product->get_permalink() ) ), $_product );
 
 		global $product;
 		// store global product data.
@@ -628,7 +633,9 @@ if ( ! function_exists( 'tinvwl_add_to_cart_need_redirect' ) ) {
 		$product = $_product;
 
 		add_filter( 'clean_url', 'tinvwl_clean_url', 10, 2 );
-		$_redirect_url = apply_filters( 'tinvwl_product_add_to_cart_redirect_url1', $_product->add_to_cart_url(), $_product );
+		do_action( 'before_get_redirect_url' );
+		$_redirect_url = apply_filters( 'tinvwl_product_add_to_cart_redirect_url', $_product->add_to_cart_url(), $_product );
+		do_action( 'after_get_redirect_url' );
 		remove_filter( 'clean_url', 'tinvwl_clean_url', 10 );
 
 		// restore global product data.
@@ -663,12 +670,14 @@ if ( ! function_exists( 'tinvwl_meta_validate_cart_add' ) ) {
 
 			$wl_product        = apply_filters( 'tinvwl_addproduct_tocart', $wl_product );
 			$product_id        = apply_filters( 'woocommerce_add_to_cart_product_id', absint( $wl_product['product_id'] ) );
-			$quantity          = empty( $wl_quantity ) ? 1 : wc_stock_amount( $wl_quantity );
+			$quantity          = empty( $wl_product['quantity'] ) ? 1 : wc_stock_amount( $wl_product['quantity'] );
 			$variation_id      = $wl_product['variation_id'];
 			$variations        = ( version_compare( WC_VERSION, '3.0.0', '<' ) ? $product->variation_data : ( $product->is_type( 'variation' ) ? wc_get_product_variation_attributes( $product->get_id() ) : array() ) );
 			$passed_validation = $product->is_purchasable() && ( $product->is_in_stock() || $product->backorders_allowed() ) && 'external' !== ( version_compare( WC_VERSION, '3.0.0', '<' ) ? $product->product_type : $product->get_type() );
 			ob_start();
-			wc_clear_notices();
+			if ( function_exists( 'wc_clear_notices' ) ) {
+				wc_clear_notices();
+			}
 			$passed_validation = apply_filters( 'woocommerce_add_to_cart_validation', $passed_validation, $product_id, $quantity, $variation_id, $variations );
 			$wc_errors         = wc_get_notices( 'error' );
 			$wc_output         = ob_get_clean();
@@ -736,7 +745,9 @@ if ( ! function_exists( 'tinv_wishlist_print_meta' ) ) {
 				echo esc_html( $data['key'] ) . ': ' . wp_kses_post( $data['display'] ) . '<br>';
 			}
 		} else {
-			tinv_wishlist_template( 'ti-wishlist-item-data.php', array( 'item_data' => $item_data ) );
+			if ( $item_data ) {
+				tinv_wishlist_template( 'ti-wishlist-item-data.php', array( 'item_data' => $item_data ) );
+			}
 		}
 
 		return apply_filters( 'tinvwl_wishlist_item_meta_wishlist', ob_get_clean() );
@@ -857,5 +868,30 @@ if ( ! function_exists( 'is_wishlist' ) ) {
 	 */
 	function is_wishlist() {
 		return ( is_page( apply_filters( 'wpml_object_id', tinv_get_option( 'page', 'wishlist' ), 'page', true ) ) );
+	}
+}
+
+if ( ! function_exists( 'tinvwl_get_wishlist_products' ) ) {
+	/**
+	 * Get wishlist products for default user wishlist or by ID or SHAREKEY
+	 *
+	 * @param int $wishlist_id by ID or SHAREKEY, 0 = default wishlist of current user
+	 * @param array $data query parameters for get() method of TInvWL_Product() class.
+	 *
+	 * @return array|bool
+	 */
+	function tinvwl_get_wishlist_products( $wishlist_id = 0, $data = array() ) {
+		$wishlist = tinv_wishlist_get( $wishlist_id );
+		if ( empty( $wishlist ) ) {
+			return false;
+		}
+		$wlp      = new TInvWL_Product( $wishlist );
+		$products = $wlp->get_wishlist( $data );
+
+		if ( empty( $products ) ) {
+			return false;
+		}
+
+		return $products;
 	}
 }

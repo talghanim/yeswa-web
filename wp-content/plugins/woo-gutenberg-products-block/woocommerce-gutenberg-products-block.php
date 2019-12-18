@@ -3,267 +3,180 @@
  * Plugin Name: WooCommerce Blocks
  * Plugin URI: https://github.com/woocommerce/woocommerce-gutenberg-products-block
  * Description: WooCommerce blocks for the Gutenberg editor.
- * Version: 1.2.0
+ * Version: 2.5.4
  * Author: Automattic
  * Author URI: https://woocommerce.com
  * Text Domain:  woo-gutenberg-products-block
- * WC requires at least: 3.3
- * WC tested up to: 3.5
- */
-
-defined( 'ABSPATH' ) || die();
-
-define( 'WGPB_VERSION', '1.2.0' );
-
-define( 'WGPB_DEVELOPMENT_MODE', false );
-
-/**
- * Load up the assets if Gutenberg is active.
- */
-function wgpb_initialize() {
-	$files_exist = file_exists( plugin_dir_path( __FILE__ ) . '/build/products-block.js' );
-
-	if ( $files_exist && function_exists( 'register_block_type' ) ) {
-		add_action( 'init', 'wgpb_register_products_block' );
-		add_action( 'enqueue_block_editor_assets', 'wgpb_extra_gutenberg_scripts' );
-	}
-
-	if ( defined( 'WGPB_DEVELOPMENT_MODE' ) && WGPB_DEVELOPMENT_MODE && ! $files_exist ) {
-		add_action( 'admin_notices', 'wgpb_plugins_notice' );
-	}
-
-	add_action( 'rest_api_init', 'wgpb_register_api_routes' );
-}
-add_action( 'woocommerce_loaded', 'wgpb_initialize' );
-
-/**
- * Display a warning about building files.
- */
-function wgpb_plugins_notice() {
-	echo '<div class="error"><p>';
-	echo __( 'WooCommerce Product Blocks development mode requires files to be built. From the plugin directory, run <code>npm install</code> to install dependencies, <code>npm run build</code> to build the files or <code>npm start</code> to build the files and watch for changes.', 'woo-gutenberg-products-block' );
-	echo '</p></div>';
-}
-
-/**
- * Register the Products block and its scripts.
- */
-function wgpb_register_products_block() {
-	register_block_type( 'woocommerce/products', array(
-		'editor_script' => 'woocommerce-products-block-editor',
-		'editor_style'  => 'woocommerce-products-block-editor',
-	) );
-}
-
-/**
- * Register extra scripts needed.
- */
-function wgpb_extra_gutenberg_scripts() {
-	if ( ! function_exists( 'wc_get_theme_support' ) ) {
-		return;
-	}
-
-	// @todo Remove this dependency (as it adds a separate react instance).
-	wp_enqueue_script(
-		'react-transition-group',
-		plugins_url( 'assets/js/vendor/react-transition-group.js', __FILE__ ),
-		array(),
-		'2.2.1',
-		true
-	);
-
-	wp_register_script(
-		'woocommerce-products-category-block',
-		plugins_url( 'build/product-category-block.js', __FILE__ ),
-		array(
-			'wp-api-fetch',
-			'wp-blocks',
-			'wp-components',
-			'wp-compose',
-			'wp-data',
-			'wp-element',
-			'wp-editor',
-			'wp-i18n',
-			'wp-url',
-			'lodash',
-		),
-		defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? filemtime( plugin_dir_path( __FILE__ ) . '/build/product-category-block.js' ) : WGPB_VERSION,
-		true
-	);
-
-	wp_register_script(
-		'woocommerce-products-block-editor',
-		plugins_url( 'build/products-block.js', __FILE__ ),
-		array( 'wp-api-fetch', 'wp-element', 'wp-components', 'wp-blocks', 'wp-editor', 'wp-i18n', 'react-transition-group' ),
-		defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? filemtime( plugin_dir_path( __FILE__ ) . '/build/products-block.js' ) : WGPB_VERSION,
-		true
-	);
-
-	$product_block_data = array(
-		'min_columns' => wc_get_theme_support( 'product_grid::min_columns', 1 ),
-		'max_columns' => wc_get_theme_support( 'product_grid::max_columns', 6 ),
-		'default_columns' => wc_get_default_products_per_row(),
-		'min_rows' => wc_get_theme_support( 'product_grid::min_rows', 1 ),
-		'max_rows' => wc_get_theme_support( 'product_grid::max_rows', 6 ),
-		'default_rows' => wc_get_default_product_rows_per_page(),
-	);
-	wp_localize_script( 'woocommerce-products-block-editor', 'wc_product_block_data', $product_block_data );
-
-	if ( function_exists( 'wp_set_script_translations' ) ) {
-		wp_set_script_translations( 'woocommerce-products-category-block', 'woo-gutenberg-products-block' );
-	}
-
-	wp_enqueue_script( 'woocommerce-products-block-editor' );
-	wp_enqueue_script( 'woocommerce-products-category-block' );
-
-	wp_enqueue_style(
-		'woocommerce-products-block-editor',
-		plugins_url( 'build/products-block.css', __FILE__ ),
-		array( 'wp-edit-blocks' ),
-		defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? filemtime( plugin_dir_path( __FILE__ ) . '/build/products-block.css' ) : WGPB_VERSION
-	);
-
-	wp_enqueue_style(
-		'woocommerce-products-category-block',
-		plugins_url( 'build/product-category-block.css', __FILE__ ),
-		array( 'wp-edit-blocks' ),
-		defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? filemtime( plugin_dir_path( __FILE__ ) . '/build/product-category-block.css' ) : WGPB_VERSION
-	);
-}
-
-/**
- * Output the wcSettings global before printing any script tags.
- */
-function wgpb_print_script_settings() {
-	$code = get_woocommerce_currency();
-
-	// Settings and variables can be passed here for access in the app.
-	$settings = array(
-		'adminUrl'         => admin_url(),
-		'wcAssetUrl'       => plugins_url( 'assets/', WC_PLUGIN_FILE ),
-		'siteLocale'       => esc_attr( get_bloginfo( 'language' ) ),
-		'currency'         => array(
-			'code'      => $code,
-			'precision' => wc_get_price_decimals(),
-			'symbol'    => get_woocommerce_currency_symbol( $code ),
-		),
-		'date'             => array(
-			'dow' => get_option( 'start_of_week', 0 ),
-		),
-	);
-	?>
-	<script type="text/javascript">
-		var wcSettings = <?php echo json_encode( $settings ); ?>;
-	</script>
-	<?php
-}
-add_action( 'admin_print_footer_scripts', 'wgpb_print_script_settings', 1 );
-
-/**
- * Register extra API routes with functionality specific for product blocks.
- */
-function wgpb_register_api_routes() {
-	include_once dirname( __FILE__ ) . '/includes/class-wgpb-products-controller.php';
-	include_once dirname( __FILE__ ) . '/includes/class-wgpb-product-categories-controller.php';
-	include_once dirname( __FILE__ ) . '/includes/class-wgpb-product-attributes-controller.php';
-	include_once dirname( __FILE__ ) . '/includes/class-wgpb-product-attribute-terms-controller.php';
-
-	$products = new WGPB_Products_Controller();
-	$products->register_routes();
-
-	$categories = new WGPB_Product_Categories_Controller();
-	$categories->register_routes();
-
-	$attributes = new WGPB_Product_Attributes_Controller();
-	$attributes->register_routes();
-
-	$attribute_terms = new WGPB_Product_Attribute_Terms_Controller();
-	$attribute_terms->register_routes();
-}
-
-/**
- * Brings some extra required shortcode features from WC core 3.4+ to this feature plugin.
+ * Requires at least: 5.0
+ * Requires PHP: 5.6
+ * WC requires at least: 3.7
+ * WC tested up to: 3.8
  *
- * @todo Remove this function when merging into core because it won't be necessary.
- *
- * @param array $args WP_Query args.
- * @param array $attributes Shortcode attributes.
- * @param string $type Type of shortcode currently processing.
+ * @package WooCommerce\Blocks
+ * @internal This file is only used when running the REST API as a feature plugin.
  */
-function wgpb_extra_shortcode_features( $args, $attributes, $type ) {
-	if ( 'products' !== $type ) {
-		return $args;
+
+defined( 'ABSPATH' ) || exit;
+
+$minimum_wp_version = '5.0';
+
+/**
+ * Whether notices must be displayed in the current page (plugins and WooCommerce pages).
+ *
+ * @since 2.5.0
+ */
+function should_display_compatibility_notices() {
+	$current_screen = get_current_screen();
+
+	if ( ! isset( $current_screen ) ) {
+		return false;
 	}
 
-	// Enable term ids in the category shortcode.
-	if ( ! empty( $attributes['category'] ) ) {
-		$categories = array_map( 'sanitize_title', explode( ',', $attributes['category'] ) );
-		$field      = 'slug';
+	$is_plugins_page     =
+		property_exists( $current_screen, 'id' ) &&
+		'plugins' === $current_screen->id;
+	$is_woocommerce_page =
+		property_exists( $current_screen, 'parent_base' ) &&
+		'woocommerce' === $current_screen->parent_base;
 
-		if ( empty( $args['tax_query'] ) ) {
-			$args['tax_query'] = array();
-		}
+	return $is_plugins_page || $is_woocommerce_page;
+}
 
-		// Unset old category tax query.
-		foreach ( $args['tax_query'] as $index => $tax_query ) {
-			if ( 'product_cat' === $tax_query['taxonomy'] ) {
-				unset( $args['tax_query'][ $index ] );
-			}
+if ( version_compare( $GLOBALS['wp_version'], $minimum_wp_version, '<' ) ) {
+	/**
+	 * Outputs for an admin notice about running WooCommerce Blocks on outdated WordPress.
+	 *
+	 * @since 2.5.0
+	 */
+	function woocommerce_blocks_admin_unsupported_wp_notice() {
+		if ( should_display_compatibility_notices() ) {
+			?>
+			<div class="notice notice-error is-dismissible">
+				<p><?php esc_html_e( 'WooCommerce Blocks requires a more recent version of WordPress and has been paused. Please update WordPress to continue enjoying WooCommerce Blocks.', 'woo-gutenberg-products-block' ); ?></p>
+			</div>
+			<?php
 		}
+	}
+	add_action( 'admin_notices', 'woocommerce_blocks_admin_unsupported_wp_notice' );
+	return;
+}
 
-		if ( is_numeric( $categories[0] ) ) {
-			$categories = array_map( 'absint', $categories );
-			$field      = 'term_id';
-		}
-		$args['tax_query'][] = array(
-			'taxonomy' => 'product_cat',
-			'terms'    => $categories,
-			'field'    => $field,
-			'operator' => $attributes['cat_operator'],
+/**
+ * Autoload packages.
+ *
+ * The package autoloader includes version information which prevents classes in this feature plugin
+ * conflicting with WooCommerce core.
+ *
+ * We want to fail gracefully if `composer install` has not been executed yet, so we are checking for the autoloader.
+ * If the autoloader is not present, let's log the failure and display a nice admin notice.
+ */
+$autoloader = __DIR__ . '/vendor/autoload_packages.php';
+if ( is_readable( $autoloader ) ) {
+	require $autoloader;
+} else {
+	if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+		error_log(  // phpcs:ignore
+			sprintf(
+				/* translators: 1: composer command. 2: plugin directory */
+				esc_html__( 'Your installation of the WooCommerce Blocks feature plugin is incomplete. Please run %1$s within the %2$s directory.', 'woo-gutenberg-products-block' ),
+				'`composer install`',
+				'`' . esc_html( str_replace( ABSPATH, '', __DIR__ ) ) . '`'
+			)
 		);
 	}
-
-	// Enable term ids in the attributes shortcode and just-attribute queries.
-	if ( ! empty( $attributes['attribute'] ) || ! empty( $attributes['terms'] ) ) {
-		$taxonomy = strstr( $attributes['attribute'], 'pa_' ) ? sanitize_title( $attributes['attribute'] ) : 'pa_' . sanitize_title( $attributes['attribute'] );
-		$terms    = $attributes['terms'] ? array_map( 'sanitize_title', explode( ',', $attributes['terms'] ) ) : array();
-		$field    = 'slug';
-
-		if ( empty( $args['tax_query'] ) ) {
-			$args['tax_query'] = array();
+	/**
+	 * Outputs an admin notice if composer install has not been ran.
+	 */
+	add_action(
+		'admin_notices',
+		function() {
+			?>
+			<div class="notice notice-error">
+				<p>
+					<?php
+					printf(
+						/* translators: 1: composer command. 2: plugin directory */
+						esc_html__( 'Your installation of the WooCommerce Blocks feature plugin is incomplete. Please run %1$s within the %2$s directory.', 'woo-gutenberg-products-block' ),
+						'<code>composer install</code>',
+						'<code>' . esc_html( str_replace( ABSPATH, '', __DIR__ ) ) . '</code>'
+					);
+					?>
+				</p>
+			</div>
+			<?php
 		}
+	);
+	return;
+}
 
-		// Unset old attribute tax query.
-		foreach ( $args['tax_query'] as $index => $tax_query ) {
-			if ( $taxonomy === $tax_query['taxonomy'] ) {
-				unset( $args['tax_query'][ $index ] );
-			}
-		}
+add_action( 'plugins_loaded', array( '\Automattic\WooCommerce\Blocks\Package', 'init' ) );
 
-		if ( $terms && is_numeric( $terms[0] ) ) {
-			$terms = array_map( 'absint', $terms );
-			$field = 'term_id';
-		}
-
-		// If no terms were specified get all products that are in the attribute taxonomy.
-		if ( ! $terms ) {
-			$terms = get_terms(
-				array(
-					'taxonomy' => $taxonomy,
-					'fields'   => 'ids',
-				)
-			);
-			$field = 'term_id';
-		}
-
-		$args['tax_query'][] = array(
-			'taxonomy' => $taxonomy,
-			'terms'    => $terms,
-			'field'    => $field,
-			'operator' => $attributes['terms_operator'],
-		);
+/**
+ * Pre-filters script translations for the given file, script handle and text domain.
+ *
+ * @param string|false|null $translations JSON-encoded translation data. Default null.
+ * @param string|false      $file         Path to the translation file to load. False if there isn't one.
+ * @param string            $handle       Name of the script to register a translation domain to.
+ * @param string            $domain       The text domain.
+ * @return string JSON translations.
+ */
+function woocommerce_blocks_get_i18n_data_json( $translations, $file, $handle, $domain ) {
+	if ( 'woo-gutenberg-products-block' !== $domain ) {
+		return $translations;
 	}
 
-	return $args;
+	global $wp_scripts;
+
+	if ( ! isset( $wp_scripts->registered[ $handle ], $wp_scripts->registered[ $handle ]->src ) ) {
+		return $translations;
+	}
+
+	$handle_filename = basename( $wp_scripts->registered[ $handle ]->src );
+	$locale          = determine_locale();
+	$lang_dir        = WP_LANG_DIR . '/plugins';
+
+	// Translations are always based on the unminified filename.
+	if ( substr( $handle_filename, -7 ) === '.min.js' ) {
+		$handle_filename = substr( $handle_filename, 0, -7 ) . '.js';
+	}
+
+	// WordPress 5.0 uses md5 hashes of file paths to associate translation
+	// JSON files with the file they should be included for. This is an md5
+	// of 'packages/woocommerce-blocks/build/FILENAME.js'.
+	$core_path_md5     = md5( 'packages/woocommerce-blocks/build/' . $handle_filename );
+	$core_json_file    = $lang_dir . '/woocommerce-' . $locale . '-' . $core_path_md5 . '.json';
+	$json_translations = is_file( $core_json_file ) && is_readable( $core_json_file ) ? file_get_contents( $core_json_file ) : false; // phpcs:ignore
+
+	if ( ! $json_translations ) {
+		return $translations;
+	}
+
+	// Rather than short circuit pre_load_script_translations, we will output
+	// core translations using an inline script. This will allow us to continue
+	// to load feature-plugin translations which may exist as well.
+	$output = <<<JS
+	( function( domain, translations ) {
+		var localeData = translations.locale_data[ domain ] || translations.locale_data.messages;
+		localeData[""].domain = domain;
+		wp.i18n.setLocaleData( localeData, domain );
+	} )( "{$domain}", {$json_translations} );
+JS;
+
+	printf( "<script type='text/javascript'>\n%s\n</script>\n", $output ); // phpcs:ignore
+
+	// Finally, short circuit the pre_load_script_translations hook by returning
+	// the translation JSON from the feature plugin, if it exists so this hook
+	// does not run again for the current handle.
+	$path_md5     = md5( 'build/' . $handle_filename );
+	$json_file    = $lang_dir . '/' . $domain . '-' . $locale . '-' . $path_md5 . '.json';
+	$translations = is_file( $json_file ) && is_readable( $json_file ) ? file_get_contents( $json_file ) : false; // phpcs:ignore
+
+	if ( $translations ) {
+		return $translations;
+	}
+
+	// Return valid empty Jed locale.
+	return '{ "locale_data": { "messages": { "": {} } } }';
 }
-add_filter( 'woocommerce_shortcode_products_query', 'wgpb_extra_shortcode_features', 10, 3 );
+
+add_filter( 'pre_load_script_translations', 'woocommerce_blocks_get_i18n_data_json', 10, 4 );

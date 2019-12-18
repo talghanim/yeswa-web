@@ -1,14 +1,14 @@
 <?php
 /**
- * WooCommerce Wishlist Plugin.
- * Plugin Name:       WooCommerce Wishlist Plugin
+ * TI WooCommerce Wishlist Plugin.
+ * Plugin Name:       TI WooCommerce Wishlist Plugin
  * Plugin URI:        https://wordpress.org/plugins/ti-woocommerce-wishlist/
  * Description:       Wishlist functionality for your WooCommerce store.
- * Version:           1.9.3
- * Requires at least: 4.5
- * Tested up to: 4.9
+ * Version:           1.15.3
+ * Requires at least: 4.7
+ * Tested up to: 5.3
  * WC requires at least: 2.6
- * WC tested up to: 3.5
+ * WC tested up to: 3.8.1
  * Author:            TemplateInvaders
  * Author URI:        https://templateinvaders.com/
  * License:           GPL-2.0+
@@ -41,7 +41,7 @@ if ( ! defined( 'TINVWL_DOMAIN' ) ) {
 }
 
 if ( ! defined( 'TINVWL_FVERSION' ) ) {
-	define( 'TINVWL_FVERSION', '1.9.3' );
+	define( 'TINVWL_FVERSION', '1.15.3' );
 }
 
 if ( ! defined( 'TINVWL_LOAD_FREE' ) ) {
@@ -102,7 +102,7 @@ if ( ! function_exists( 'tinv_get_option_defaults' ) ) {
 		$defaults = array();
 		foreach ( $files as $file ) {
 			$class         = 'TInvWL_Admin_Settings_' . ucfirst( $file );
-			$class         = new $class( '', '' );
+			$class         = $class::instance();
 			$class_methods = get_class_methods( $class );
 			foreach ( $class_methods as $method ) {
 				if ( preg_match( '/_data$/i', $method ) ) {
@@ -181,17 +181,16 @@ if ( function_exists( 'spl_autoload_register' ) && ! function_exists( 'autoload_
 		}
 		$basicclass = $class;
 		array_unshift( $class, 'includes' );
-		$classs = array(
+		$classes = array(
 			TINVWL_PATH . strtolower( implode( DIRECTORY_SEPARATOR, $basicclass ) ),
 			TINVWL_PATH . strtolower( implode( DIRECTORY_SEPARATOR, $class ) ),
 		);
-		foreach ( $classs as $class ) {
+
+		foreach ( $classes as $class ) {
 			foreach ( array( '.class', '.helper' ) as $suffix ) {
 				$filename = $class . $suffix . $ext;
 				if ( file_exists( $filename ) ) {
 					require_once $filename;
-
-					return true;
 				}
 			}
 		}
@@ -229,12 +228,15 @@ if ( ! function_exists( 'run_tinv_wishlist' ) ) {
 	 */
 	function run_tinv_wishlist() {
 		require_once TINVWL_PATH . 'tinv-wishlists-function.php';
-		require_once TINVWL_PATH . 'tinv-wishlists-function-integration.php';
+
+		foreach ( glob( TINVWL_PATH . 'integrations' . DIRECTORY_SEPARATOR . '*.php' ) as $file ) {
+			require_once $file;
+		}
 
 		if ( ! function_exists( 'is_plugin_active' ) ) {
 			require_once( ABSPATH . 'wp-admin/includes/plugin.php' );
 		}
-		if ( defined( 'TINVWL_LOAD_PREMIUM' ) && defined( 'TINVWL_LOAD_FREE' ) ) {
+		if ( defined( 'TINVWL_LOAD_PREMIUM' ) && defined( 'TINVWL_LOAD_FREE' ) || defined( 'TINVWL_LOAD_PREMIUM' ) && is_plugin_active_for_network( TINVWL_LOAD_PREMIUM ) || defined( 'TINVWL_LOAD_FREE' ) && is_plugin_active_for_network( TINVWL_LOAD_FREE ) ) {
 			$redirect = tinv_wishlist_status( plugin_basename( __FILE__ ) );
 			if ( $redirect ) {
 				header( 'Location: ' . $redirect );

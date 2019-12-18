@@ -1,17 +1,23 @@
-export default {
-	/**
-	 * Alignment of product grid
-	 */
-	align: {
-		type: 'string',
-	},
+/**
+ * External dependencies
+ */
+import { DEFAULT_COLUMNS, DEFAULT_ROWS } from '@woocommerce/block-settings';
 
+export const sharedAttributeBlockTypes = [
+	'woocommerce/product-best-sellers',
+	'woocommerce/product-category',
+	'woocommerce/product-new',
+	'woocommerce/product-on-sale',
+	'woocommerce/product-top-rated',
+];
+
+export default {
 	/**
 	 * Number of columns.
 	 */
 	columns: {
 		type: 'number',
-		default: wc_product_block_data.default_columns,
+		default: DEFAULT_COLUMNS,
 	},
 
 	/**
@@ -19,14 +25,51 @@ export default {
 	 */
 	rows: {
 		type: 'number',
-		default: wc_product_block_data.default_rows,
+		default: DEFAULT_ROWS,
 	},
 
 	/**
-	 * How to order the products: 'date', 'popularity', 'price_asc', 'price_desc' 'rating', 'title'.
+	 * How to align cart buttons.
 	 */
-	orderby: {
+	alignButtons: {
+		type: 'boolean',
+		default: false,
+	},
+
+	/**
+	 * Product category, used to display only products in the given categories.
+	 */
+	categories: {
+		type: 'array',
+		default: [],
+	},
+
+	/**
+	 * Product category operator, used to restrict to products in all or any selected categories.
+	 */
+	catOperator: {
 		type: 'string',
-		default: 'date',
+		default: 'any',
+	},
+
+	/**
+	 * Content visibility setting
+	 */
+	contentVisibility: {
+		type: 'object',
+		default: {
+			title: true,
+			price: true,
+			rating: true,
+			button: true,
+		},
+	},
+
+	/**
+	 * Are we previewing?
+	 */
+	isPreview: {
+		type: 'boolean',
+		default: false,
 	},
 };

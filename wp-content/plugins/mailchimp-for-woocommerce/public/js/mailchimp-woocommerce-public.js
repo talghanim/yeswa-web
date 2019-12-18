@@ -199,6 +199,7 @@ mailchimpReady(function () {
             mailchimp_registration_email.onblur = function () { mailchimpHandleBillingEmail('#reg_email'); };
             mailchimp_registration_email.onfocus = function () { mailchimpHandleBillingEmail('#reg_email'); }
         }
+
     } catch (e) {
         console.log('mailchimp ready error', e);
     }

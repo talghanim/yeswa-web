@@ -72,13 +72,19 @@ class TInvWL_Public_Cart {
 	 * Define hooks
 	 */
 	function define_hooks() {
-		add_action( 'woocommerce_before_cart_item_quantity_zero', array( __CLASS__, 'remove_item_data' ) );
+		if ( version_compare( WC_VERSION, '3.7.0', '<' ) ) {
+			add_action( 'woocommerce_before_cart_item_quantity_zero', array( __CLASS__, 'remove_item_data' ) );
+		} else {
+			add_action( 'woocommerce_remove_cart_item', array( __CLASS__, 'remove_item_data' ) );
+		}
 		add_action( 'woocommerce_cart_emptied', array( __CLASS__, 'remove_item_data' ) );
 		if ( version_compare( WC_VERSION, '3.0.0', '<' ) ) {
 			add_action( 'woocommerce_add_order_item_meta', array( $this, 'add_order_item_meta' ), 10, 3 );
 		} else {
 			add_action( 'woocommerce_checkout_create_order', array( $this, 'add_order_item_meta_v3' ) );
 		}
+		add_action( 'woocommerce_checkout_update_order_meta', array( $this, 'purchased_items' ) );
+		add_action( 'woocommerce_order_status_changed', array( $this, 'order_status_analytics' ), 9, 3 );
 	}
 
 	/**
@@ -88,7 +94,7 @@ class TInvWL_Public_Cart {
 	 * @param integer $wl_product Wishlist product id.
 	 * @param integer $wl_quantity Product quantity.
 	 *
-	 * @return boolean
+	 * @return array|boolean
 	 */
 	public static function add( $wishlist = null, $wl_product = 0, $wl_quantity = 1 ) {
 		if ( empty( $wishlist ) ) {
@@ -143,10 +149,13 @@ class TInvWL_Public_Cart {
 				 * @param array $product product data.
 				 * */
 				do_action( 'tinvwl_product_added_to_cart', $cart_item_key, $quantity, $product );
+				$wla = new TInvWL_Analytics( $wishlist, self::$_name );
+				$wla->cart_product( $product_id, $variation_id );
 				if ( ( 'private' !== $wishlist['status'] && tinv_get_option( 'processing', 'autoremove_anyone' ) ) || $wishlist['is_owner'] && 'tinvwl-addcart' === tinv_get_option( 'processing', 'autoremove_status' ) ) {
 					self::ar_f_wl( $wishlist, $product_id, $quantity, $variation_id, $product['meta'] );
 				}
 				self::set_item_data( $cart_item_key, $wishlist['share_key'], $quantity );
+				self::set_item_meta( $cart_item_key, $product['meta'] );
 				self::unprepare_post();
 
 				return array( $product_id => $quantity );
@@ -175,7 +184,7 @@ class TInvWL_Public_Cart {
 	}
 
 	/**
-	 * Unrepare _POST data
+	 * Unprepare _POST data
 	 */
 	public static function unprepare_post() {
 		$_POST    = self::$_post;
@@ -230,6 +239,34 @@ class TInvWL_Public_Cart {
 	}
 
 	/**
+	 * Get product added from wishlist meta
+	 *
+	 * @param string $cart_item_key Cart product key.
+	 *
+	 * @return array
+	 */
+	public static function get_item_meta( $cart_item_key ) {
+		$data = (array) WC()->session->get( 'tinvwl_wishlist_meta', array() );
+		if ( array_key_exists( $cart_item_key, $data ) ) {
+			return $data[ $cart_item_key ];
+		}
+
+		return array();
+	}
+
+	/**
+	 * Set product added from wishlist meta
+	 *
+	 * @param string $cart_item_key Cart product key.
+	 * @param array $meta Meta data.
+	 */
+	public static function set_item_meta( $cart_item_key, $meta = array() ) {
+		$data                   = (array) WC()->session->get( 'tinvwl_wishlist_meta', array() );
+		$data[ $cart_item_key ] = $meta;
+		WC()->session->set( 'tinvwl_wishlist_meta', $data );
+	}
+
+	/**
 	 * Remove product added from wishlist
 	 *
 	 * @param string $cart_item_key Cart product key.
@@ -272,21 +309,6 @@ class TInvWL_Public_Cart {
 		$data = apply_filters( 'tinvwl_addproduct_toorder', $data, $cart_item_key, $values );
 		if ( ! empty( $data ) ) {
 			wc_add_order_item_meta( $item_id, '_tinvwl_wishlist_cart', $data );
-
-			$wishlist = null;
-
-			reset( $data );
-			$share_key = key( $data );
-
-			$wl       = new TInvWL_Wishlist();
-			$wishlist = $wl->get_by_share_key( $share_key );
-			/* Run a 3rd party code when product purchased from wishlist.
-			 *
-			 * @param string $item_id Order item id.
-			 * @param array $values order item data.
-			 * @param array $wishlist A wishlist data where product added from.
-			 * */
-			do_action( 'tinvwl_product_purchased', $item_id, $values, $wishlist );
 		}
 	}
 
@@ -301,14 +323,35 @@ class TInvWL_Public_Cart {
 			$data = apply_filters( 'tinvwl_addproduct_toorder', $data, $item->legacy_cart_item_key, $item->legacy_values );
 			if ( ! empty( $data ) ) {
 				$item->update_meta_data( '_tinvwl_wishlist_cart', $data );
+			}
+		}
+	}
 
+	/**
+	 *  Run action when purchased product from a wishlist.
+	 *
+	 * @param int $order Order ID.
+	 */
+	public function purchased_items( $order_id ) {
+		$order = wc_get_order( $order_id );
+		if ( ! $order ) {
+			return;
+		}
+		foreach ( $order->get_items() as $item ) {
+
+			$_wishlist_cart = self::get_order_item_meta( $item, '_tinvwl_wishlist_cart' );
+
+			if ( $_wishlist_cart ) {
 				$wishlist = null;
 
-				reset( $data );
-				$share_key = key( $data );
+				if ( is_array( $_wishlist_cart ) ) {
+					reset( $_wishlist_cart );
+					$share_key = key( $_wishlist_cart );
 
-				$wl       = new TInvWL_Wishlist();
-				$wishlist = $wl->get_by_share_key( $share_key );
+					$wl       = new TInvWL_Wishlist();
+					$wishlist = $wl->get_by_share_key( $share_key );
+				}
+
 				/* Run a 3rd party code when product purchased from wishlist.
 				 *
 				 * @param WC_order $order Order object.
@@ -318,6 +361,31 @@ class TInvWL_Public_Cart {
 				do_action( 'tinvwl_product_purchased', $order, $item, $wishlist );
 			}
 		}
+	}
+
+	/**
+	 * Get wishlist by key or user id
+	 *
+	 * @param string $key Share key.
+	 * @param integer $user_id Author order id.
+	 *
+	 * @return array
+	 */
+	private function get_order_wishlist( $key, $user_id = 0 ) {
+		$wl = new TInvWL_Wishlist( self::$_name );
+		if ( ! empty( $key ) ) {
+			$wishlist = $wl->get_by_share_key( $key );
+			if ( ! empty( $user_id ) && ( $wishlist['author'] !== $user_id && ! ( ( tinv_get_option( 'processing', 'autoremove_anyone_type' ) ? tinv_get_option( 'processing', 'autoremove_anyone_type' ) === $wishlist['status'] : 'private' !== $wishlist['status'] ) && tinv_get_option( 'processing', 'autoremove_anyone' ) ) ) ) {
+				return null;
+			}
+
+			return $wishlist;
+		}
+		if ( ! empty( $user_id ) ) {
+			return $wl->add_user_default( $user_id );
+		}
+
+		return null;
 	}
 
 	/**
@@ -360,5 +428,80 @@ class TInvWL_Public_Cart {
 		$wlp->remove_product_from_wl( 0, $product_id, $variation_id, $product['meta'] );
 
 		return 0;
+	}
+
+	/**
+	 * Analytics check completed orders
+	 *
+	 * @param integer $order_id Order id.
+	 * @param string $old_status Not used.
+	 * @param string $new_status Updated status order.
+	 *
+	 * @return void
+	 */
+	function order_status_analytics( $order_id, $old_status, $new_status ) {
+		$new_status = str_replace( 'wc-', '', $new_status );
+		$order      = new WC_Order( $order_id );
+
+		if ( in_array( $new_status, array(
+				'processing',
+				'completed',
+			) ) && empty( get_post_meta( $order_id, '_wishlist_analytics_processed', true ) ) ) {
+
+			$items = $order->get_items();
+			if ( empty( $items ) || ! is_array( $items ) ) {
+				return;
+			}
+
+			foreach ( $items as $item ) {
+
+				$_wishlist_cart = self::get_order_item_meta( $item, '_tinvwl_wishlist_cart' );
+
+				if ( $_wishlist_cart ) {
+					$_quantity = absint( $item['qty'] );
+					if ( is_array( $_wishlist_cart ) ) {
+						foreach ( array_keys( $_wishlist_cart ) as $key ) {
+							if ( 0 >= $_quantity ) {
+								break;
+							}
+							$wishlist = $this->get_order_wishlist( $key );
+
+							if ( empty( $wishlist ) ) {
+								continue;
+							}
+							$wla = new TInvWL_Analytics( $wishlist, self::$_name );
+							$wla->sell_product_from_wl( $item['product_id'], $item['variation_id'] );
+						}
+					}
+				}
+			}
+
+			update_post_meta( $order_id, '_wishlist_analytics_processed', '1' );
+		}
+	}
+
+	/**
+	 * Get order item meta value.
+	 *
+	 * @param $item
+	 * @param $key
+	 *
+	 * @return mixed
+	 */
+	public static function get_order_item_meta( $item, $key ) {
+		if ( version_compare( WC_VERSION, '3.0.0', '<' ) ) {
+			//WooCommerce before 3.0
+
+			if ( array_key_exists( $key, (array) $item ) ) {
+				$value = maybe_unserialize( $item[ $key ] );
+			}
+		} else {
+			// WooCommerce 3.0
+
+			// Check if wishlist meta exists for current item order.
+			$value = $item->get_meta( $key );
+		}
+
+		return $value;
 	}
 }

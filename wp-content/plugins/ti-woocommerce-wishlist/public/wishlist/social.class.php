@@ -26,7 +26,6 @@ class TInvWL_Public_Wishlist_Social {
 	/**
 	 * Image url
 	 *
-	 * @deprecated 0.0.2
 	 * @var string
 	 */
 	static $image;
@@ -43,29 +42,10 @@ class TInvWL_Public_Wishlist_Social {
 			return false;
 		}
 
-		self::prepare( $wishlist );
-		self::htmloutput( $wishlist );
-	}
+		self::$image = TInvWL_Public_Wishlist_View::instance()->social_image;
+		self::$url   = TInvWL_Public_Wishlist_View::instance()->wishlist_url;
 
-	/**
-	 * Prepare data for social buttons
-	 *
-	 * @param array $wishlist Set from action.
-	 */
-	public static function prepare( $wishlist ) {
-		self::$url   = tinv_url_wishlist( $wishlist['share_key'] );
-		$wlp         = new TInvWL_Product( $wishlist );
-		$products    = $wlp->get_wishlist( array(
-			'count'    => 1,
-			'order_by' => 'date',
-			'order'    => 'DESC',
-		) );
-		$product     = array_shift( $products );
-		self::$image = '';
-		if ( ! empty( $product ) && ! empty( $product['data'] ) ) {
-			list( $url, $width, $height, $is_intermediate ) = wp_get_attachment_image_src( $product['data']->get_image_id(), 'full' );
-			self::$image = $url;
-		}
+		self::htmloutput( $wishlist );
 	}
 
 	/**
@@ -77,11 +57,14 @@ class TInvWL_Public_Wishlist_Social {
 
 		$social = tinv_get_option( 'social' );
 
-		$share_on = apply_filters( 'tinvwl-social-share_on', tinv_get_option( 'social', 'share_on' ) );
+		$share_on = apply_filters( 'tinvwl_share_on_text', tinv_get_option( 'social', 'share_on' ) );
 
 		foreach ( $social as $name => $soc_network ) {
 			if ( $soc_network && method_exists( __CLASS__, $name ) ) {
 				$social[ $name ] = self::$name();
+				if ( 'clipboard' === $name ) {
+					wp_enqueue_script( 'tinvwl-clipboard' );
+				}
 			} else {
 				$social[ $name ] = '';
 			}
@@ -144,19 +127,6 @@ class TInvWL_Public_Wishlist_Social {
 	}
 
 	/**
-	 * Create google++ share url
-	 *
-	 * @return string
-	 */
-	public static function google() {
-		$data = array(
-			'url' => self::$url,
-		);
-
-		return 'https://plus.google.com/share?' . http_build_query( $data );
-	}
-
-	/**
 	 * Create email share url
 	 *
 	 * @return string
@@ -167,5 +137,27 @@ class TInvWL_Public_Wishlist_Social {
 		);
 
 		return 'mailto:?' . http_build_query( $data );
+	}
+
+	/**
+	 * Create copy to clipboard url
+	 *
+	 * @return string
+	 */
+	public static function clipboard() {
+		return self::$url;
+	}
+
+	/**
+	 * Create WhatsApp share url
+	 *
+	 * @return string
+	 */
+	public static function whatsapp() {
+		$data = array(
+			'text' => self::$url,
+		);
+
+		return 'https://api.whatsapp.com/send?' . http_build_query( $data );
 	}
 }

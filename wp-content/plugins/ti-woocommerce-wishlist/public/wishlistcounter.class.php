@@ -65,7 +65,6 @@ class TInvWL_Public_WishlistCounter {
 		}
 	}
 
-
 	/**
 	 * Add to menu wishlist link
 	 *
@@ -76,8 +75,6 @@ class TInvWL_Public_WishlistCounter {
 	 * @return array
 	 */
 	public static function add_to_menu( $items, $menu, $args ) {
-
-
 		$menu_cnt = count( $items ) + 1;
 		$menu_id  = tinv_get_option( 'topline', 'menu' );
 
@@ -95,7 +92,7 @@ class TInvWL_Public_WishlistCounter {
 
 			$counter = tinv_get_option( 'topline', 'show_counter' ) ? '<span class="wishlist_products_counter_number"></span>' : '';
 
-			$text = tinv_get_option( 'topline', 'show_text' ) ? apply_filters( 'tinvwl-topline-text', tinv_get_option( 'topline', 'text' ) ) : '';
+			$text = tinv_get_option( 'topline', 'show_text' ) ? apply_filters( 'tinvwl_wishlist_products_counter_text', tinv_get_option( 'topline', 'text' ) ) : '';
 
 			$icon = '<span class="wishlist_products_counter ' . $icon_class . ' ' . $icon_style . ( empty( $text ) ? ' no-txt' : '' ) . ( 0 < $counter ? ' wishlist-counter-with-products' : '' ) . '" >';
 
@@ -105,14 +102,14 @@ class TInvWL_Public_WishlistCounter {
 
 			$icon .= '</span>';
 
-			$menu_title = apply_filters( 'tinvwl-menu-item-title', $icon . ' ' . $text . ' ' . $counter, $icon, $text, $counter );
+			$menu_title = apply_filters( 'tinvwl_wishlist_products_counter_menu_html', $icon . ' ' . $text . ' ' . $counter, $icon, $text, $counter );
 
 			if ( $menu_title ) {
 
 				$wishlist_item = (object) array(
-					'ID'                    => $menu_cnt + 100000,
-					'object_id'             => $menu_cnt + 100000,
-					'db_id'                 => $menu_cnt + 100000,
+					'ID'                    => $menu_cnt + 2147480000,
+					'object_id'             => $menu_cnt + 2147480000,
+					'db_id'                 => $menu_cnt + 2147480000,
 					'title'                 => $menu_title,
 					'post_title'            => $menu_title,
 					'url'                   => esc_url( tinv_url_wishlist_default() ),
@@ -160,8 +157,7 @@ class TInvWL_Public_WishlistCounter {
 					'post_mime_type'        => '',
 				);
 
-
-				foreach ( $items as $key => $item ) {
+				foreach ( array_keys( $items ) as $key ) {
 
 					if ( $items[ $key ]->menu_order > ( $menu_order - 1 ) ) {
 						$items[ $key ]->menu_order = $items[ $key ]->menu_order + 1;
@@ -205,7 +201,9 @@ class TInvWL_Public_WishlistCounter {
 	 * @return array
 	 */
 	public static function update_widget( $data ) {
-		$data['fragments'] = self::update_fragments( array() );
+		if ( apply_filters( 'tinvwl_wc_cart_fragments_enabled', true ) ) {
+			$data['fragments'] = self::update_fragments( array() );
+		}
 
 		return $data;
 	}
@@ -269,7 +267,7 @@ class TInvWL_Public_WishlistCounter {
 		$default = array(
 			'show_icon'    => (bool) tinv_get_option( 'topline', 'icon' ),
 			'show_text'    => tinv_get_option( 'topline', 'show_text' ),
-			'text'         => apply_filters( 'tinvwl-topline-text', tinv_get_option( 'topline', 'text' ) ),
+			'text'         => apply_filters( 'tinvwl_wishlist_products_counter_text', tinv_get_option( 'topline', 'text' ) ),
 			'show_counter' => tinv_get_option( 'topline', 'show_counter' ),
 		);
 		$atts    = filter_var_array( shortcode_atts( $default, $atts ), array(

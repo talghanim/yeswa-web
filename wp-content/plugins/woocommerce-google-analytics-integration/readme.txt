@@ -2,8 +2,8 @@
 Contributors: woocommerce, claudiosanches, bor0, royho, laurendavissmith001, c-shultz
 Tags: woocommerce, google analytics
 Requires at least: 3.8
-Tested up to: 5.0
-Stable tag: 1.4.7
+Tested up to: 5.3
+Stable tag: 1.4.15
 License: GPLv3
 License URI: http://www.gnu.org/licenses/gpl-3.0.html
 
@@ -68,6 +68,31 @@ Exact wording depends on the national data privacy laws and should be adjusted.
 
 == Changelog ==
 
+= 1.4.15 - 2019-11-04 =
+* Tweak - WC 3.8 compatibility.
+
+= 1.4.14 - 2019-09-04 =
+* Fix - Google Analytics JS URL missing quotes.
+
+= 1.4.13 - 2019-09-03 =
+* Tweak - Make Google Analytics JS script URL filterable.
+
+= 1.4.12 - 2019-08-13 =
+* Tweak - WC 3.7 compatibility.
+
+= 1.4.11 - 2019-08-02 =
+* Add - Filter to bypass "send pageview" for users whom want to use separate standard GA. `wc_goole_analytics_send_pageview`.
+* Fix - Revert last release due to it causing ecommerce tracking to be disabled when standard tracking is disabled.
+
+= 1.4.10 - 2019-07-10 =
+* Fix - Ensure universal analytics pageview doesn’t occur if standard tracking is disabled.
+
+= 1.4.9 - 2019-04-16 =
+* Tweak - WC 3.6 compatibility.
+
+= 1.4.8 - 2019-03-04 =
+* Fix - Event for deleting from cart not sent after a cart update.
+
 = 1.4.7 - 11/19/2018 =
 * Tweak - WP 5.0 compatibility.
 
@@ -77,18 +102,6 @@ Exact wording depends on the national data privacy laws and should be adjusted.
 = 1.4.5 - 16/10/2018 =
 * Tweak - Mention Google Analytics Pro in certain cases.
 * Tweak - WC 3.5 compatibility.
-
-= 1.4.4 - 20/03/2018 =
-* Fix   - WC30 compatibility error when using deprecated get_product_from_item method.
-* Fix   - Check object before using methods to prevent errors.
-* Fix   - Variations not reporting category in cart tracking.
-* Add   - Filter woocommerce_ga_disable_tracking added to disable tracking.
-* Tweak - Rebuilt languages pot file.
-
-= 1.4.3 - 15/06/2017 =
-* Fix - WC 3.x notice by using proper variation data.
-* Add - Option to track 404 (Not found) errors.
-
 
 == Upgrade Notice ==
 = 1.4.0 =

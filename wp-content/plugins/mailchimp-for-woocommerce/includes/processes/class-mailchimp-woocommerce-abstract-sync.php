@@ -8,7 +8,7 @@
  * Date: 7/14/16
  * Time: 11:54 AM
  */
-abstract class MailChimp_WooCommerce_Abstract_Sync extends WP_Job
+abstract class MailChimp_WooCommerce_Abstract_Sync extends Mailchimp_Woocommerce_Job
 {
     /**
      * @var MailChimp_WooCommerce_Api
@@ -29,6 +29,11 @@ abstract class MailChimp_WooCommerce_Abstract_Sync extends WP_Job
      * @var string
      */
     protected $store_id = '';
+
+    /**
+     * @var bool
+     */
+    protected $has_applied_pagination = false;
 
     /**
      * @return mixed
@@ -76,23 +81,32 @@ abstract class MailChimp_WooCommerce_Abstract_Sync extends WP_Job
      */
     public function handle()
     {
-        global $wpdb;
-
         if (!mailchimp_is_configured()) {
-            mailchimp_debug(get_called_class(), 'mailchimp is not configured properly');
+            mailchimp_debug(get_called_class(), 'Mailchimp is not configured properly');
             return false;
         }
 
         if (!($this->store_id = $this->getStoreID())) {
             mailchimp_debug(get_called_class().'@handle', 'store id not loaded');
-            $this->delete();
             return false;
+        }
+
+        // if we're being rate limited - we need to pause here.
+        if ($this->isBeingRateLimited()) {
+            // wait a few seconds
+            sleep(3);
+            // check this again
+            if ($this->isBeingRateLimited()) {
+                // ok - hold off for a few - let's re-queue the job.
+                mailchimp_debug(get_called_class().'@handle', 'being rate limited - pausing for a few seconds...');
+                $this->next();
+                return false;
+            }
         }
 
         // don't let recursion happen.
         if ($this->getResourceType() === 'orders' && $this->getResourceCompleteTime()) {
             mailchimp_log('sync.stop', "halting the sync for :: {$this->getResourceType()}");
-            $this->delete();
             return false;
         }
 
@@ -103,7 +117,6 @@ abstract class MailChimp_WooCommerce_Abstract_Sync extends WP_Job
             // call the completed event to process further
             $this->resourceComplete($this->getResourceType());
             $this->complete();
-            $this->delete();
 
             return false;
         }
@@ -121,25 +134,44 @@ abstract class MailChimp_WooCommerce_Abstract_Sync extends WP_Job
             // call the completed event to process further
             $this->complete();
 
-            $this->delete();
 
             return false;
         }
 
         // iterate through the items and send each one through the pipeline based on this class.
         foreach ($page->items as $resource) {
-            $this->iterate($resource);
+            try {
+                $this->iterateCurrentResource($resource);
+            } catch (MailChimp_WooCommerce_RateLimitError $e) {
+                $this->applyRateLimitedScenario();
+                return false;
+            }
         }
 
-        $this->delete();
+        $this->next();
 
-        $class_name = get_called_class();
-        $wpdb->query("DELETE FROM {$wpdb->prefix}queue WHERE job LIKE '%{$class_name}%'");
-
-        // this will paginate through all records for the resource type until they return no records.
-        mailchimp_handle_or_queue(new static());
-        mailchimp_debug(get_called_class().'@handle', 'queuing up the next job');
         return false;
+    }
+
+    /**
+     * @param $resource
+     * @return bool
+     * @throws MailChimp_WooCommerce_RateLimitError
+     */
+    protected function iterateCurrentResource($resource)
+    {
+        $attempts = 1;
+        while ($attempts <= 4) {
+            $attempts++;
+            try {
+                return $this->iterate($resource);
+            } catch (MailChimp_WooCommerce_RateLimitError $e) {
+                if ($attempts === 4) {
+                    throw $e;
+                }
+                sleep(3);
+            }
+        }
     }
 
     /**
@@ -154,13 +186,14 @@ abstract class MailChimp_WooCommerce_Abstract_Sync extends WP_Job
         $this->setData('sync.config.resync', false);
         $this->setData('sync.orders.current_page', 1);
         $this->setData('sync.products.current_page', 1);
+        $this->setData('sync.coupons.current_page', 1);
         $this->setData('sync.syncing', true);
         $this->setData('sync.started_at', time());
 
         global $wpdb;
         try {
             $wpdb->show_errors(false);
-            $wpdb->query("DELETE FROM {$wpdb->prefix}queue");
+            mailchimp_delete_as_jobs();
             $wpdb->show_errors(true);
         } catch (\Exception $e) {}
 
@@ -184,6 +217,7 @@ abstract class MailChimp_WooCommerce_Abstract_Sync extends WP_Job
         // set the current sync pages back to 1 if the user hits resync.
         $this->setData('sync.orders.current_page', 1);
         $this->setData('sync.products.current_page', 1);
+        $this->setData('sync.coupons.current_page', 1);
 
         mailchimp_log('sync.completed', "Finished Sync :: ".date('D, M j, Y g:i A'));
 
@@ -246,6 +280,9 @@ abstract class MailChimp_WooCommerce_Abstract_Sync extends WP_Job
     {
         if (empty($resource)) $resource = $this->getResourceType();
 
+        // tell the file that if we catch a rate limit error that we need to revert to the current page.
+        $this->has_applied_pagination = $page;
+
         return $this->setData('sync.'.$resource.'.current_page', $page);
     }
 
@@ -263,7 +300,8 @@ abstract class MailChimp_WooCommerce_Abstract_Sync extends WP_Job
     }
 
     /**
-     * @return null
+     * @param null $resource
+     * @return MailChimp_WooCommerce_Abstract_Sync
      */
     protected function setResourceCompleteTime($resource = null)
     {
@@ -391,5 +429,40 @@ abstract class MailChimp_WooCommerce_Abstract_Sync extends WP_Job
             $this->mc = new MailChimp_WooCommerce_MailChimpApi($this->getOption('mailchimp_api_key'));
         }
         return $this->mc;
+    }
+
+    /**
+     * @return bool
+     */
+    protected function isBeingRateLimited()
+    {
+        return (bool) mailchimp_get_transient('api-rate-limited', false);
+    }
+
+    /**
+     * @return $this
+     */
+    protected function applyRateLimitedScenario()
+    {
+        mailchimp_set_transient('api-rate-limited', true, 60);
+
+        if ($this->has_applied_pagination) {
+            $this->setResourcePagePointer(($this->has_applied_pagination-1));
+            $this->has_applied_pagination = false;
+        }
+
+        $this->next();
+
+        return $this;
+    }
+
+    /**
+     *
+     */
+    protected function next()
+    {
+        // this will paginate through all records for the resource type until they return no records.
+        mailchimp_handle_or_queue(new static(), 0);
+        mailchimp_debug(get_called_class().'@handle', 'queuing up the next job');
     }
 }

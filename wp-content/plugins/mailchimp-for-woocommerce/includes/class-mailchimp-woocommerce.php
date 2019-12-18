@@ -118,7 +118,6 @@ class MailChimp_WooCommerce
      */
     public function __construct($environment = 'production', $version = '1.0.0')
     {
-
         $this->plugin_name = 'mailchimp-woocommerce';
         $this->version = $version;
         $this->environment = $environment;
@@ -132,6 +131,29 @@ class MailChimp_WooCommerce
 
         $this->activateMailChimpNewsletter();
         $this->activateMailChimpService();
+        $this->applyQueryStringOverrides();
+    }
+
+    /**
+     *
+     */
+    private function applyQueryStringOverrides()
+    {
+        // if we need to refresh the double opt in for any reason - just do it here.
+        if ($this->queryStringEquals('mc_doi_refresh', '1')) {
+            $enabled_doi = mailchimp_list_has_double_optin(true);
+            mailchimp_log('mc.utils.doi_refresh', ($enabled_doi ? 'turned ON' : 'turned OFF'));
+        }
+    }
+
+    /**
+     * @param $key
+     * @param string $value
+     * @return bool
+     */
+    private function queryStringEquals($key, $value = '1')
+    {
+        return isset($_GET[$key]) && $_GET[$key] === $value;
     }
 
     /**
@@ -152,34 +174,12 @@ class MailChimp_WooCommerce
      */
     private function load_dependencies()
     {
-        global $wp_queue;
-        if (empty($wp_queue)) {
-            $wp_queue = new WP_Queue();
-        }
-
         // fire up the loader
         $this->loader = new MailChimp_WooCommerce_Loader();
 
-        if (!mailchimp_running_in_console() && mailchimp_is_configured()) {
-            // fire up the http worker container
-            new WP_Http_Worker($wp_queue);
-        }
-
-        // if we're not running in the console, and the http_worker is not running
-        if (mailchimp_should_init_queue()) {
-            try {
-                // if we do not have a site transient for the queue listener
-                if (!get_site_transient('http_worker_queue_listen')) {
-                    // set the site transient to expire in 50 seconds so this will not happen too many times
-                    // but still work for cron scripts on the minute mark.
-                    set_site_transient('http_worker_queue_listen', microtime(), 50);
-                    // if we have available jobs, call the http worker manually
-                    if ($wp_queue->available_jobs()) {
-                        mailchimp_call_http_worker_manually();
-                    }
-                }
-            } catch (\Exception $e) {}
-        }
+        // change up the queue to use the new rest api version
+        $service = new MailChimp_WooCommerce_Rest_Api();
+        $this->loader->add_action( 'rest_api_init', $service, 'register_routes');
     }
 
     /**
@@ -194,7 +194,7 @@ class MailChimp_WooCommerce
     private function set_locale()
     {
         $plugin_i18n = new MailChimp_WooCommerce_i18n();
-        $this->loader->add_action('plugins_loaded', $plugin_i18n, 'load_plugin_textdomain');
+        $this->loader->add_action('init', $plugin_i18n, 'load_plugin_textdomain');
     }
 
     /**
@@ -218,7 +218,7 @@ class MailChimp_WooCommerce
 	 */
 	private function define_admin_hooks() {
 
-		$plugin_admin = new MailChimp_WooCommerce_Admin( $this->get_plugin_name(), $this->get_version() );
+		$plugin_admin = MailChimp_WooCommerce_Admin::instance();
 
 		$this->loader->add_action('admin_enqueue_scripts', $plugin_admin, 'enqueue_styles');
 		$this->loader->add_action('admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts');
@@ -236,8 +236,22 @@ class MailChimp_WooCommerce
 		// put the menu on the admin top bar.
 		//$this->loader->add_action('admin_bar_menu', $plugin_admin, 'admin_bar', 100);
 
-		$this->loader->add_action('plugins_loaded', $plugin_admin, 'update_db_check');
-	}
+        $this->loader->add_action('plugins_loaded', $plugin_admin, 'update_db_check');
+        $this->loader->add_action('admin_init', $plugin_admin, 'setup_survey_form');
+        $this->loader->add_action('admin_footer', $plugin_admin, 'inject_sync_ajax_call');
+
+        // update MC store information when woocommerce general settings are saved
+        $this->loader->add_action('woocommerce_settings_save_general', $plugin_admin, 'mailchimp_update_woo_settings');
+        
+        // update MC store information if "WooCommerce Multi-Currency Extension" settings are saved
+        if ( class_exists( 'WOOMULTI_CURRENCY_F' ) ) {
+            $this->loader->add_action('villatheme_support_woo-multi-currency', $plugin_admin, 'mailchimp_update_woo_settings');
+        }
+
+        // Mailchimp oAuth
+        $this->loader->add_action( 'wp_ajax_mailchimp_woocommerce_oauth_start', $plugin_admin, 'mailchimp_woocommerce_ajax_oauth_start' );
+        $this->loader->add_action( 'wp_ajax_mailchimp_woocommerce_oauth_finish', $plugin_admin, 'mailchimp_woocommerce_ajax_oauth_finish' );
+    }
 
 	/**
 	 * Register all of the hooks related to the public-facing functionality
@@ -249,8 +263,6 @@ class MailChimp_WooCommerce
 	private function define_public_hooks() {
 
 		$plugin_public = new MailChimp_WooCommerce_Public( $this->get_plugin_name(), $this->get_version() );
-
-		$this->loader->add_action('wp_enqueue_scripts', $plugin_public, 'enqueue_styles');
 		$this->loader->add_action('wp_enqueue_scripts', $plugin_public, 'enqueue_scripts');
 	}
 
@@ -259,7 +271,7 @@ class MailChimp_WooCommerce
 	 */
 	private function activateMailChimpNewsletter()
 	{
-		$service = new MailChimp_Newsletter();
+		$service = MailChimp_Newsletter::instance();
 
 		if ($this->is_configured && $service->isConfigured()) {
 
@@ -285,7 +297,7 @@ class MailChimp_WooCommerce
 	 */
 	private function activateMailChimpService()
 	{
-		$service = new MailChimp_Service();
+		$service = MailChimp_Service::instance();
 
 		if ($service->isConfigured()) {
 
@@ -303,13 +315,10 @@ class MailChimp_WooCommerce
 			$this->loader->add_action( 'init', $service, 'handleCampaignTracking' );
 
 			// order hooks
-            $this->loader->add_action('woocommerce_thankyou', $service, 'onNewOrder', 10);
-			$this->loader->add_action('woocommerce_api_create_order', $service, 'onNewOrder', 10);
-            $this->loader->add_action('woocommerce_ppe_do_payaction', $service, 'onNewPayPalOrder', 10, 1);
-			$this->loader->add_action('woocommerce_order_status_changed', $service, 'handleOrderStatusChanged', 10);
+            $this->loader->add_action('woocommerce_order_status_changed', $service, 'handleOrderStatusChanged', 11, 3);
 
-			// partially refunded
-            $this->loader->add_action('woocommerce_order_partially_refunded', $service, 'onPartiallyRefunded', 10);
+			// refunds
+            $this->loader->add_action('woocommerce_order_partially_refunded', $service, 'onPartiallyRefunded', 20, 1);
 
 			// cart hooks
 			//$this->loader->add_action('woocommerce_cart_updated', $service, 'handleCartUpdated');
@@ -343,6 +352,21 @@ class MailChimp_WooCommerce
             // set user by email hash ( public and private )
             $this->loader->add_action('wp_ajax_mailchimp_set_user_by_email', $service, 'set_user_by_email');
             $this->loader->add_action('wp_ajax_nopriv_mailchimp_set_user_by_email', $service, 'set_user_by_email');
+
+            $jobs_classes = array(
+                "MailChimp_WooCommerce_Single_Order",
+                "MailChimp_WooCommerce_SingleCoupon",
+                "MailChimp_WooCommerce_Single_Product",
+                "MailChimp_WooCommerce_Cart_Update",
+                "MailChimp_WooCommerce_User_Submit",
+                "MailChimp_WooCommerce_Process_Coupons",
+                "MailChimp_WooCommerce_Process_Coupons_Initial_Sync",
+                "MailChimp_WooCommerce_Process_Orders",
+                "MailChimp_WooCommerce_Process_Products"
+            );
+            foreach ($jobs_classes as $job_class) {
+                $this->loader->add_action($job_class, $service, 'mailchimp_process_single_job', 10, 1);
+            }
 		}
 	}
 

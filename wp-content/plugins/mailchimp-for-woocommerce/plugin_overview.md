@@ -8,9 +8,11 @@ In this article, you’ll learn how to connect Mailchimp for WooCommerce.
 
 - For the most up-to-date install instructions, read [Connect or Disconnect Mailchimp for WooCommerce](http://kb.mailchimp.com/integrations/e-commerce/connect-or-disconnect-mailchimp-for-woocommerce). 
 
-- This plugin requires you to have the [WooCommerce plugin](https://wordpress.org/plugins/woocommerce) already installed and activated in WordPress. 
+- This plugin requires you to have the latest [WooCommerce plugin](https://wordpress.org/plugins/woocommerce) already installed and activated in WordPress. 
 
 - Your host environment must meet [WooCommerce's minimum requirements](https://docs.woocommerce.com/document/server-requirements), including PHP 7.0 or greater.
+
+- WordPress REST API should be enabled in order for this plugin to work.
 
 - We recommend you use this plugin in a staging environment before installing it on production servers. 
 
@@ -79,7 +81,7 @@ After you activate the plugin, you’ll be taken to the **Settings** page, where
 
 All set! When you click **Save all changes**, we’ll start syncing your WooCommerce customers to Mailchimp. To view progress, check the **Sync Status** tab. 
 
-If you have no lists in your Mailchimp account, you will be given the option to create a new list on the **List Defaults** tab. To create a new list, set your list defaults, and click **Save all Changes** when you’re done. We’ll create a Mailchimp list for you, and begin the data sync.
+If you have no audiences in your Mailchimp account, you will be given the option to create a new list on the **List Defaults** tab. To create a new list, set your list defaults, and click **Save all Changes** when you’re done. We’ll create a Mailchimp list for you, and begin the data sync.
 
 ![List Defaults tab](https://cloud.githubusercontent.com/assets/19805049/18956260/cffd3926-8628-11e6-9c68-9fe3c964c75c.png)
 

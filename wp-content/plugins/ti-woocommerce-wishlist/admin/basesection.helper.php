@@ -30,11 +30,11 @@ abstract class TInvWL_Admin_BaseSection extends TInvWL_Admin_Base {
 	 * @param string $version Plugin version.
 	 */
 	function __construct( $plugin_name, $version ) {
-		$this->_name = $plugin_name;
+		$this->_name    = $plugin_name;
 		$this->_version = $version;
-		$menu     = $this->menu();
+		$menu           = $this->menu();
 		if ( ! empty( $menu ) ) {
-			add_action( $this->_name . '_admin_menu', array( $this, 'adminmenu' ), $this->priority );
+			add_action( 'tinvwl_admin_menu', array( $this, 'adminmenu' ), $this->priority );
 		}
 		$this->load_function();
 	}
@@ -75,7 +75,7 @@ abstract class TInvWL_Admin_BaseSection extends TInvWL_Admin_Base {
 	 * General print
 	 *
 	 * @param integer $id Id parameter.
-	 * @param string  $cat Category parameter.
+	 * @param string $cat Category parameter.
 	 */
 	function _print_general( $id = 0, $cat = '' ) {
 		$title  = $this->menu();
@@ -89,10 +89,10 @@ abstract class TInvWL_Admin_BaseSection extends TInvWL_Admin_Base {
 			$method = 'constructor_data';
 		}
 
-		$data = apply_filters( "{$this->_name}_{$cat}_data", $data );
+		$data = apply_filters( "tinvwl_{$cat}_data", $data );
 		if ( method_exists( $this, $method ) ) {
-			$sections = apply_filters( 'tinwl_prepare_admsections_' . $method, $this->$method() );
-			$sections = apply_filters( 'tinwl_prepare_admsections', $sections );
+			$sections = apply_filters( 'tinvwl_prepare_admsections_' . $method, $this->$method() );
+			$sections = apply_filters( 'tinvwl_prepare_admsections', $sections );
 			$view     = new TInvWL_ViewSection( $this->_name, $this->_version );
 			$view->load_data( $sections );
 			$method = $cat . '_save';
@@ -100,14 +100,14 @@ abstract class TInvWL_Admin_BaseSection extends TInvWL_Admin_Base {
 				$method = 'constructor_save';
 			}
 			if ( method_exists( $this, $method ) ) {
-				$this->$method( apply_filters( 'tinwl_prepare_admsections_' . $method, $view->post_form() ) );
+				$this->$method( apply_filters( 'tinvwl_prepare_admsections_' . $method, $view->post_form() ) );
 			}
 			$method = $cat . '_load';
 			if ( ! method_exists( $this, $method ) ) {
 				$method = 'constructor_load';
 			}
 			if ( method_exists( $this, $method ) ) {
-				$view->load_value( apply_filters( 'tinwl_prepare_admsections_' . $method, $this->$method( $sections ) ) );
+				$view->load_value( apply_filters( 'tinvwl_prepare_admsections_' . $method, $this->$method( $sections ) ) );
 			}
 			TInvWL_View::render( $view, $view->form_data( $data ) );
 		} else {
@@ -127,7 +127,7 @@ abstract class TInvWL_Admin_BaseSection extends TInvWL_Admin_Base {
 		if ( ! is_array( $sections ) ) {
 			return $defaults;
 		}
-		$sections = apply_filters( 'tinwl_prepare_admsections', $sections );
+		$sections = apply_filters( 'tinvwl_prepare_admsections', $sections );
 		foreach ( $sections as $section ) {
 			if ( array_key_exists( 'noform', $section ) && $section['noform'] ) {
 				continue;
@@ -160,8 +160,8 @@ abstract class TInvWL_Admin_BaseSection extends TInvWL_Admin_Base {
 	 * Form for section
 	 */
 	function form() {
-		add_filter( $this->_name . '_section_before', array( $this, 'start_form' ) );
-		add_filter( $this->_name . '_section_after', array( $this, 'end_form' ) );
+		add_filter( 'tinvwl_section_before', array( $this, 'start_form' ) );
+		add_filter( 'tinvwl_section_after', array( $this, 'end_form' ) );
 	}
 
 	/**

@@ -10,6 +10,25 @@ class MailChimp_WooCommerce_MailChimpApi
     protected $api_key = null;
     protected $auth_type = 'key';
 
+    protected static $instance = null;
+
+    /**
+     * @return null|MailChimp_WooCommerce_MailChimpApi
+     */
+    public static function getInstance()
+    {
+        return static::$instance;
+    }
+
+    /**
+     * @param $api_key
+     * @return MailChimp_WooCommerce_MailChimpApi
+     */
+    public static function constructInstance($api_key)
+    {
+        return static::$instance = new MailChimp_WooCommerce_MailChimpApi($api_key);
+    }
+
     /**
      * MailChimpService constructor.
      * @param null $api_key
@@ -163,7 +182,7 @@ class MailChimp_WooCommerce_MailChimpApi
     public function deleteMember($list_id, $email)
     {
         $hash = md5(strtolower(trim($email)));
-        return $this->delete("lists/$list_id/members/$hash", array());
+        return (bool) $this->delete("lists/$list_id/members/$hash", array());
     }
 
     /**
@@ -243,6 +262,75 @@ class MailChimp_WooCommerce_MailChimpApi
         mailchimp_debug('api.update_member', "Updating {$email}", $data);
 
         return $this->patch("lists/$list_id/members/$hash", $data);
+    }
+
+    /**
+     * @param $list_id
+     * @return mixed
+     * @throws \Throwable
+     */
+    public function getSubscribedCount($list_id)
+    {
+        if (empty($list_id)) {
+            return 0;
+        }
+        return $this->get("lists/{$list_id}/members?status=subscribed&count=1")['total_items'];
+    }
+
+    /**
+     * @param $list_id
+     * @return mixed
+     * @throws \Throwable
+     */
+    public function getUnsubscribedCount($list_id)
+    {
+        if (empty($list_id)) {
+            return 0;
+        }
+        return $this->get("lists/{$list_id}/members?status=unsubscribed&count=1")['total_items'];
+    }
+
+    /**
+     * @param $list_id
+     * @return mixed
+     * @throws \Throwable
+     */
+    public function getTransactionalCount($list_id)
+    {
+        if (empty($list_id)) {
+            return 0;
+        }
+        return $this->get("lists/{$list_id}/members?status=transactional&count=1")['total_items'];
+    }
+
+
+    /**
+     * @param $list_id
+     * @param $email
+     * @param bool $fail_silently
+     * @return array|bool|mixed|object|null
+     * @throws MailChimp_WooCommerce_Error|\Exception
+     */
+    public function updateMemberTags($list_id, $email, $fail_silently = false)
+    {
+        $hash = md5(strtolower(trim($email)));
+        $tags = mailchimp_get_user_tags_to_update();
+        
+        if (empty($tags)) return false;
+        
+        $data = array(
+            'tags' => $tags
+        );
+
+        mailchimp_debug('api.update_member_tags', "Updating {$email}", $data);
+
+        try {
+            return $this->post("lists/$list_id/members/$hash/tags", $data);
+        } catch (\Exception $e) {
+            if (!$fail_silently) throw $e;
+        }
+
+        return false;
     }
 
     /**
@@ -371,7 +459,7 @@ class MailChimp_WooCommerce_MailChimpApi
      */
     public function deleteList($id)
     {
-        return $this->delete('lists/'.$id);
+        return (bool) $this->delete('lists/'.$id);
     }
 
     /**
@@ -485,6 +573,37 @@ class MailChimp_WooCommerce_MailChimpApi
     }
 
     /**
+     * @param $campaign_id
+     * @param bool $throw_if_invalid
+     * @return array|bool|mixed|object|null
+     * @throws Exception
+     */
+    public function getCampaign($campaign_id, $throw_if_invalid = true)
+    {
+        // if we found the campaign ID already and it's been stored in the cache, return it from the cache instead.
+        if (($data = get_site_transient('mailchimp-woocommerce-has-campaign-id-'.$campaign_id))) {
+            return $data;
+        }
+        if (get_site_transient('mailchimp-woocommerce-no-campaign-id-'.$campaign_id)) {
+            return false;
+        }
+        try {
+            $data = $this->get("campaigns/$campaign_id");
+            delete_site_transient('mailchimp-woocommerce-no-campaign-id-'.$campaign_id);
+            set_site_transient('mailchimp-woocommerce-has-campaign-id-'.$campaign_id, $data, 60 * 30);
+            return $data;
+        } catch (\Exception $e) {
+            mailchimp_debug('campaign_get.error', 'No campaign with provided ID: '. $campaign_id. ' :: '. $e->getMessage(). ' :: in '.$e->getFile().' :: on '.$e->getLine());
+            set_site_transient('mailchimp-woocommerce-no-campaign-id-'.$campaign_id, true, 60 * 30);
+
+            if (!$throw_if_invalid) {
+                return false;
+            }
+            throw $e;
+        }
+    }
+
+    /**
      * @param $store_id
      * @return array|bool
      */
@@ -520,7 +639,7 @@ class MailChimp_WooCommerce_MailChimpApi
     public function stores()
     {
         try {
-            $data = $this->get("ecommerce/stores", array('count' => 50));
+            $data = $this->get("ecommerce/stores", array('count' => 1000));
 
             if (!isset($data['stores']) || empty($data['stores'])) {
                 return array();
@@ -611,8 +730,7 @@ class MailChimp_WooCommerce_MailChimpApi
     public function deleteStore($store_id)
     {
         try {
-            $this->delete("ecommerce/stores/$store_id");
-            return true;
+            return (bool) $this->delete("ecommerce/stores/$store_id");
         } catch (MailChimp_WooCommerce_Error $e) {
             return false;
         } catch (\Exception $e) {
@@ -764,8 +882,7 @@ class MailChimp_WooCommerce_MailChimpApi
     public function deleteCartByID($store_id, $id)
     {
         try {
-            $this->delete("ecommerce/stores/$store_id/carts/$id");
-            return true;
+            return (bool) $this->delete("ecommerce/stores/$store_id/carts/$id");
         } catch (MailChimp_WooCommerce_Error $e) {
             return false;
         } catch (\Exception $e) {
@@ -805,8 +922,7 @@ class MailChimp_WooCommerce_MailChimpApi
     public function deleteCustomer($store_id, $customer_id)
     {
         try {
-            $this->delete("ecommerce/stores/$store_id/customers/$customer_id");
-            return true;
+            return (bool) $this->delete("ecommerce/stores/$store_id/customers/$customer_id");
         } catch (MailChimp_WooCommerce_Error $e) {
             return false;
         }
@@ -829,11 +945,16 @@ class MailChimp_WooCommerce_MailChimpApi
             // submit the first one
             $data = $this->post("ecommerce/stores/$store_id/orders", $order->toArray());
 
+            $email_address = $order->getCustomer()->getEmailAddress();
+
             // if the order is in pending status, we need to submit the order again with a paid status.
             if ($order->shouldConfirmAndPay() && $order->getFinancialStatus() !== 'paid') {
                 $order->setFinancialStatus('paid');
                 $data = $this->patch("ecommerce/stores/{$store_id}/orders/{$order->getId()}", $order->toArray());
             }
+
+            // update the member tags but fail silently just in case.
+            $this->updateMemberTags(mailchimp_get_list_id(), $email_address, true);
 
             update_option('mailchimp-woocommerce-resource-last-updated', time());
             $order = new MailChimp_WooCommerce_Order();
@@ -858,14 +979,29 @@ class MailChimp_WooCommerce_MailChimpApi
             if (!$this->validateStoreSubmission($order)) {
                 return false;
             }
-            $id = $order->getId();
-            $data = $this->patch("ecommerce/stores/{$store_id}/orders/{$id}", $order->toArray());
+            $order_id = $order->getId();
+            $data = $this->patch("ecommerce/stores/{$store_id}/orders/{$order_id}", $order->toArray());
+            
+            //update user tags
+            $email_address = $order->getCustomer()->getEmailAddress();
+
+            // if products list differs, we should remove the old products and add new ones
+            $data_lines = $data['lines'];
+            $order_lines = $order->getLinesIds();
+            foreach ($data_lines as $line) {
+                if (!in_array($line['id'], $order_lines)) {
+                    $this->deleteStoreOrderLine($store_id, $order_id, $line['id']);
+                }
+            }
 
             // if the order is in pending status, we need to submit the order again with a paid status.
             if ($order->shouldConfirmAndPay() && $order->getFinancialStatus() !== 'paid') {
                 $order->setFinancialStatus('paid');
-                $data = $this->patch("ecommerce/stores/{$store_id}/orders/{$id}", $order->toArray());
+                $data = $this->patch("ecommerce/stores/{$store_id}/orders/{$order_id}", $order->toArray());
             }
+
+            // update the member tags but fail silently just in case.
+            $this->updateMemberTags(mailchimp_get_list_id(), $email_address, true);
 
             $order = new MailChimp_WooCommerce_Order();
             return $order->fromArray($data);
@@ -902,8 +1038,23 @@ class MailChimp_WooCommerce_MailChimpApi
     public function deleteStoreOrder($store_id, $order_id)
     {
         try {
-            $this->delete("ecommerce/stores/$store_id/orders/$order_id");
-            return true;
+            return (bool) $this->delete("ecommerce/stores/$store_id/orders/$order_id");
+        } catch (MailChimp_WooCommerce_Error $e) {
+            return false;
+        }
+    }
+
+     /**
+     * @param $store_id
+     * @param $order_id
+     * @param $line_id
+     * @return bool
+     * @throws Exception
+     */
+    public function deleteStoreOrderLine($store_id, $order_id, $line_id)
+    {
+        try {
+            return (bool) $this->delete("ecommerce/stores/{$store_id}/orders/{$order_id}/lines/{$line_id}");
         } catch (MailChimp_WooCommerce_Error $e) {
             return false;
         }
@@ -972,6 +1123,47 @@ class MailChimp_WooCommerce_MailChimpApi
 
     /**
      * @param $store_id
+     * @param MailChimp_WooCommerce_Product $product
+     * @param bool $silent
+     * @return bool|MailChimp_WooCommerce_Product
+     * @throws Exception
+     */
+    public function updateStoreProduct($store_id, MailChimp_WooCommerce_Product $product, $silent = true)
+    {
+        try {
+            if (!$this->validateStoreSubmission($product)) {
+                return false;
+            }
+            $data = $this->patch("ecommerce/stores/$store_id/products/{$product->getId()}", $product->toArray());
+            update_option('mailchimp-woocommerce-resource-last-updated', time());
+            $product = new MailChimp_WooCommerce_Product();
+            return $product->fromArray($data);
+        } catch (\Exception $e) {
+            if (!$silent) throw $e;
+            mailchimp_log('api.update_product.error', $e->getMessage(), array('submission' => $product->toArray()));
+            return false;
+        }
+    }
+
+    /**
+     * @param MailChimp_WooCommerce_Order $order
+     * @return array
+     */
+    public function handleProductsMissingFromAPI(MailChimp_WooCommerce_Order $order)
+    {
+        $missing_products = array();
+        foreach ($order->items() as $order_item) {
+            /** @var \MailChimp_WooCommerce_LineItem $order_item */
+            $job = new MailChimp_WooCommerce_Single_Product($order_item->getId());
+            if ($missing_products[$order_item->getId()] = $job->createModeOnly()->handle()) {
+                mailchimp_debug("missing_products.fallback", "Product {$order_item->getId()} had to be re-pushed into Mailchimp");
+            }
+        }
+        return $missing_products;
+    }
+
+    /**
+     * @param $store_id
      * @param $product_id
      * @return bool
      * @throws Exception
@@ -979,8 +1171,7 @@ class MailChimp_WooCommerce_MailChimpApi
     public function deleteStoreProduct($store_id, $product_id)
     {
         try {
-            $this->delete("ecommerce/stores/$store_id/products/$product_id");
-            return true;
+            return (bool) $this->delete("ecommerce/stores/$store_id/products/$product_id");
         } catch (MailChimp_WooCommerce_Error $e) {
             return false;
         }
@@ -1391,24 +1582,6 @@ class MailChimp_WooCommerce_MailChimpApi
     /**
      * @param $method
      * @param $url
-     * @param $body
-     * @return array|WP_Error
-     */
-    protected function sendWithHttpClient($method, $url, $body)
-    {
-        return _wp_http_get_object()->request($this->url($url), array(
-            'method' => strtoupper($method),
-            'headers' => array(
-                'Authorization' => 'Basic ' . base64_encode('mailchimp:'.$this->api_key),
-                'Content-Type' => 'application/json',
-            ),
-            'body' => json_encode($body),
-        ));
-    }
-
-    /**
-     * @param $method
-     * @param $url
      * @param array $params
      * @param array $headers
      * @return array
@@ -1417,7 +1590,7 @@ class MailChimp_WooCommerce_MailChimpApi
     {
         $env = mailchimp_environment_variables();
 
-        return array(
+        $curl_options = array(
             CURLOPT_USERPWD => "mailchimp:{$this->api_key}",
             CURLOPT_CUSTOMREQUEST => strtoupper($method),
             CURLOPT_URL => $this->url($url, $params),
@@ -1429,14 +1602,22 @@ class MailChimp_WooCommerce_MailChimpApi
             CURLINFO_HEADER_OUT => true,
             CURLOPT_HTTPHEADER => array_merge(array(
                 'content-type: application/json',
+                'accept' => 'application/json',
                 "user-agent: MailChimp for WooCommerce/{$env->version}; PHP/{$env->php_version}; WordPress/{$env->wp_version}; Woo/{$env->wc_version};",
             ), $headers)
         );
+
+        // if we have a dedicated IP address, and have set a configuration for it, we'll use it here.
+        if (defined('MAILCHIMP_USE_OUTBOUND_IP')) {
+            $curl_options[CURLOPT_INTERFACE] = MAILCHIMP_USE_OUTBOUND_IP;
+        }
+
+        return $curl_options;
     }
 
     /**
      * @param $curl
-     * @return array|mixed|null|object
+     * @return array|mixed|bool|null|object
      * @throws Exception
      * @throws MailChimp_WooCommerce_Error
      * @throws MailChimp_WooCommerce_ServerError
@@ -1456,6 +1637,10 @@ class MailChimp_WooCommerce_MailChimpApi
         $data = json_decode($response, true);
 
         if (empty($info) || ($info['http_code'] >= 200 && $info['http_code'] <= 400)) {
+            if ($info['http_code'] == 204) {
+                // possibily a successful DELETE operation
+                return true;
+            }
             if (is_array($data)) {
                 try {
                     $this->checkForErrors($data);
@@ -1467,6 +1652,12 @@ class MailChimp_WooCommerce_MailChimpApi
         }
 
         if ($info['http_code'] >= 400 && $info['http_code'] <= 500) {
+            if ($info['http_code'] == 404) {
+                // mailchimp_error('api', 'processCurlResponse', array('info' => $info, 'data' => $data));
+            }
+            if ($info['http_code'] == 403) {
+                throw new MailChimp_WooCommerce_RateLimitError();
+            }
             throw new MailChimp_WooCommerce_Error($data['title'] .' :: '.$data['detail'], $data['status']);
         }
 
@@ -1495,6 +1686,9 @@ class MailChimp_WooCommerce_MailChimpApi
 
         // make sure the response is correct from the data in the response array
         if (isset($data['status']) && $data['status'] >= 400) {
+            if (isset($data['http_code']) && $data['http_code'] == 403) {
+                throw new MailChimp_WooCommerce_RateLimitError();
+            }
             throw new MailChimp_WooCommerce_Error($data['detail'], $data['status']);
         }
 

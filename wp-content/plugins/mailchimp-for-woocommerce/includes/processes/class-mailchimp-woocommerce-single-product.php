@@ -8,22 +8,61 @@
  * Date: 7/15/16
  * Time: 11:42 AM
  */
-class MailChimp_WooCommerce_Single_Product extends WP_Job
+class MailChimp_WooCommerce_Single_Product extends Mailchimp_Woocommerce_Job
 {
-    public $product_id;
+    public $id;
     protected $store_id;
     protected $api;
     protected $service;
+    protected $mode = 'update_or_create';
 
     /**
-     * MailChimp_WooCommerce_Single_Order constructor.
-     * @param null|int $product_id
+     * MailChimp_WooCommerce_Single_product constructor.
+     * @param null|int $id
      */
-    public function __construct($product_id = null)
+    public function __construct($id = null)
     {
-        if (!empty($product_id)) {
-            $this->product_id = $product_id instanceof WP_Post ? $product_id->ID : $product_id;
+        $this->setId($id);
+    }
+
+    /**
+     * @param null $id
+     * @return MailChimp_WooCommerce_Single_Product
+     */
+    public function setId($id)
+    {
+        if (!empty($id)) {
+            $this->id = $id instanceof WP_Post ? $id->ID : $id;
         }
+    }
+
+    /**
+     * @return $this
+     */
+    public function createModeOnly()
+    {
+        $this->mode = 'create';
+        return $this;
+    }
+
+    /**
+     * @return $this
+     */
+    public function updateModeOnly()
+    {
+        $this->mode = 'update';
+
+        return $this;
+    }
+
+    /**
+     * @return $this
+     */
+    public function updateOrCreateMode()
+    {
+        $this->mode = 'update_or_create';
+
+        return $this;
     }
 
     /**
@@ -41,43 +80,62 @@ class MailChimp_WooCommerce_Single_Product extends WP_Job
      */
     public function process()
     {
-        if (empty($this->product_id)) {
+        if (empty($this->id)) {
             return false;
         }
 
         if (!mailchimp_is_configured()) {
-            mailchimp_debug(get_called_class(), 'mailchimp is not configured properly');
+            mailchimp_debug(get_called_class(), 'Mailchimp is not configured properly');
             return false;
         }
 
-        if ($this->api()->getStoreProduct($this->store_id, $this->product_id)) {
-            $this->api()->deleteStoreProduct($this->store_id, $this->product_id);
-        }
+        $method = "no action";
 
         try {
 
-            if (!($product_post = get_post($this->product_id))) {
+            if (!($product_post = get_post($this->id))) {
+                return false;
+            }
+
+            // pull the product from Mailchimp first to see what method we need to call next.
+            $mailchimp_product = $this->api()->getStoreProduct($this->store_id, $this->id);
+
+            // depending on if it's existing or not - we change the method call
+            $method = $mailchimp_product ? 'updateStoreProduct' : 'addStoreProduct';
+
+            // if the mode set is "create" and the product is in Mailchimp - just return the product.
+            if ($this->mode === 'create' && !empty($mailchimp_product)) {
+                return $mailchimp_product;
+            }
+
+            // if the mode is set to "update" and the product is not currently in Mailchimp - skip it.
+            if ($this->mode === 'update' && empty($mailchimp_product)) {
                 return false;
             }
 
             $product = $this->transformer()->transform($product_post);
 
-            mailchimp_debug('product_submit.debug', "#{$this->product_id}", $product->toArray());
+            mailchimp_debug('product_submit.debug', "#{$this->id}", $product->toArray());
 
-            $this->api()->addStoreProduct($this->store_id, $product, false);
+            // either updating or creating the product
+            $this->api()->{$method}($this->store_id, $product, false);
 
-            mailchimp_log('product_submit.success', "addStoreProduct :: #{$product->getId()}");
+            mailchimp_log('product_submit.success', "{$method} :: #{$product->getId()}");
 
             update_option('mailchimp-woocommerce-last_product_updated', $product->getId());
 
             return $product;
 
+        } catch (MailChimp_WooCommerce_RateLimitError $e) {
+            sleep(3);
+            $this->release();
+            mailchimp_error('product_submit.error', mailchimp_error_trace($e, "RateLimited :: #{$this->id}"));
         } catch (MailChimp_WooCommerce_ServerError $e) {
-            mailchimp_error('product_submit.error', mailchimp_error_trace($e, "addStoreProduct :: #{$this->product_id}"));
+            mailchimp_error('product_submit.error', mailchimp_error_trace($e, "{$method} :: #{$this->id}"));
         } catch (MailChimp_WooCommerce_Error $e) {
-            mailchimp_log('product_submit.error', mailchimp_error_trace($e, "addStoreProduct :: #{$this->product_id}"));
+            mailchimp_log('product_submit.error', mailchimp_error_trace($e, "{$method} :: #{$this->id}"));
         } catch (Exception $e) {
-            mailchimp_log('product_submit.error', mailchimp_error_trace($e, "addStoreProduct :: #{$this->product_id}"));
+            mailchimp_log('product_submit.error', mailchimp_error_trace($e, "{$method} :: #{$this->id}"));
         }
 
         return false;

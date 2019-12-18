@@ -8,9 +8,9 @@
  * Date: 7/15/16
  * Time: 11:42 AM
  */
-class MailChimp_WooCommerce_Single_Order extends WP_Job
+class MailChimp_WooCommerce_Single_Order extends Mailchimp_Woocommerce_Job
 {
-    public $order_id;
+    public $id;
     public $cart_session_id;
     public $campaign_id;
     public $landing_site;
@@ -23,17 +23,28 @@ class MailChimp_WooCommerce_Single_Order extends WP_Job
 
     /**
      * MailChimp_WooCommerce_Single_Order constructor.
-     * @param null $order_id
+     * @param null $id
      * @param null $cart_session_id
      * @param null $campaign_id
      * @param null $landing_site
      */
-    public function __construct($order_id = null, $cart_session_id = null, $campaign_id = null, $landing_site = null)
+    public function __construct($id = null, $cart_session_id = null, $campaign_id = null, $landing_site = null)
     {
-        if (!empty($order_id)) $this->order_id = $order_id;
+        if (!empty($id)) $this->id = $id;
         if (!empty($cart_session_id)) $this->cart_session_id = $cart_session_id;
         if (!empty($campaign_id)) $this->campaign_id = $campaign_id;
         if (!empty($landing_site)) $this->landing_site = $landing_site;
+    }
+
+    /**
+     * @param null $id
+     * @return MailChimp_WooCommerce_Single_Order
+     */
+    public function setId($id)
+    {
+        $this->id = $id;
+
+        return $this;
     }
 
     /**
@@ -48,7 +59,7 @@ class MailChimp_WooCommerce_Single_Order extends WP_Job
     public function process()
     {
         if (!mailchimp_is_configured() || !($api = mailchimp_get_api())) {
-            mailchimp_debug(get_called_class(), 'mailchimp is not configured properly');
+            mailchimp_debug(get_called_class(), 'Mailchimp is not configured properly');
             return false;
         }
 
@@ -93,7 +104,7 @@ class MailChimp_WooCommerce_Single_Order extends WP_Job
         // will either add or update the order
         try {
 
-            if (!($order_post = get_post($this->order_id))) {
+            if (!($order_post = get_post($this->id))) {
                 return false;
             }
 
@@ -102,6 +113,18 @@ class MailChimp_WooCommerce_Single_Order extends WP_Job
 
             // will be the same as the customer id. an md5'd hash of a lowercased email.
             $this->cart_session_id = $order->getCustomer()->getId();
+
+            // see if we have a campaign ID already from the order transformer / cookie.
+            $campaign_id = $order->getCampaignId();
+
+            // if the campaign ID is empty, and we have a cart session id
+            if (empty($campaign_id) && !empty($this->cart_session_id)) {
+                // pull the cart info from Mailchimp
+                if (($abandoned_cart_record = $api->getCart($store_id, $this->cart_session_id))) {
+                    // set the campaign ID
+                    $order->setCampaignId($this->campaign_id = $abandoned_cart_record->getCampaignID());
+                }
+            }
 
             // delete the AC cart record.
             $deleted_abandoned_cart = !empty($this->cart_session_id) && $api->deleteCartByID($store_id, $this->cart_session_id);
@@ -140,8 +163,13 @@ class MailChimp_WooCommerce_Single_Order extends WP_Job
             if ($new_order) {
                 // apply a campaign id if we have one.
                 if (!empty($this->campaign_id)) {
-                    $log .= ' :: campaign id ' . $this->campaign_id;
-                    $order->setCampaignId($this->campaign_id);
+                    try {
+                        $order->setCampaignId($this->campaign_id);
+                        $log .= ' :: campaign id ' . $this->campaign_id;
+                    }
+                    catch (\Exception $e) {
+                        mailchimp_log('single_order_set_campaign_id.error', 'No campaign added to order, with provided ID: '. $this->campaign_id. ' :: '. $e->getMessage(). ' :: in '.$e->getFile().' :: on '.$e->getLine());
+                    }
                 }
 
                 // apply the landing site if we have one.
@@ -151,8 +179,26 @@ class MailChimp_WooCommerce_Single_Order extends WP_Job
                 }
             }
 
-            // update or create
-            $api_response = $api->$call($store_id, $order, false);
+            try {
+                // update or create
+                $api_response = $api->$call($store_id, $order, false);
+            } catch (\Exception $e) {
+                // if for whatever reason we get a product not found error, we need to iterate
+                // through the order items, and use a "create mode only" on each product
+                // then re-submit the order once they're in the database again.
+                if (mailchimp_string_contains($e->getMessage(), 'product with the provided ID')) {
+                    $api->handleProductsMissingFromAPI($order);
+                    // make another attempt again to add the order.
+                    $api_response = $api->$call($store_id, $order, false);
+                } elseif (mailchimp_string_contains($e->getMessage(), 'campaign with the provided ID')) {
+                    // the campaign was invalid, we need to remove it and re-submit
+                    $order->setCampaignId(null);
+                    // make another attempt again to add the order.
+                    $api_response = $api->$call($store_id, $order, false);
+                } else {
+                    throw $e;
+                }
+            }
 
             if (empty($api_response)) {
                 mailchimp_error('order_submit.failure', "$call :: #{$order->getId()} :: email: {$order->getCustomer()->getEmailAddress()} produced a blank response from MailChimp");
@@ -167,25 +213,26 @@ class MailChimp_WooCommerce_Single_Order extends WP_Job
 
             // if the customer has a flag to double opt in - we need to push this data over to MailChimp as pending
             // before the order is submitted.
-            if ($order->getCustomer()->requiresDoubleOptIn()) {
+            if ($order->getCustomer()->requiresDoubleOptIn() && $order->getCustomer()->getOriginalSubscriberStatus()) {
                 try {
                     $list_id = mailchimp_get_list_id();
-                    $merge_vars = $order->getCustomer()->getMergeVars();
+                    $merge_fields = $order->getCustomer()->getMergeFields();
                     $email = $order->getCustomer()->getEmailAddress();
 
                     try {
                         $member = $api->member($list_id, $email);
                         if ($member['status'] === 'transactional') {
-                            $api->update($list_id, $email, 'pending', $merge_vars);
+
+                            $api->update($list_id, $email, 'pending', $merge_fields);
                             mailchimp_tell_system_about_user_submit($email, mailchimp_get_subscriber_status_options('pending'), 60);
-                            mailchimp_log('double_opt_in', "Updated {$email} Using Double Opt In - previous status was '{$member['status']}'", $merge_vars);
+                            mailchimp_log('double_opt_in', "Updated {$email} Using Double Opt In - previous status was '{$member['status']}'", $merge_fields);
                         }
                     } catch (\Exception $e) {
                         // if the error code is 404 - need to subscribe them becausce it means they were not on the list.
                         if ($e->getCode() == 404) {
-                            $api->subscribe($list_id, $email, false, $merge_vars);
+                            $api->subscribe($list_id, $email, false, $merge_fields);
                             mailchimp_tell_system_about_user_submit($email, mailchimp_get_subscriber_status_options(false), 60);
-                            mailchimp_log('double_opt_in', "Subscribed {$email} Using Double Opt In", $merge_vars);
+                            mailchimp_log('double_opt_in', "Subscribed {$email} Using Double Opt In", $merge_fields);
                         } else {
                             mailchimp_error('double_opt_in.update', $e->getMessage());
                         }
@@ -196,12 +243,16 @@ class MailChimp_WooCommerce_Single_Order extends WP_Job
             }
 
             return $api_response;
+        } catch (MailChimp_WooCommerce_RateLimitError $e) {
+            sleep(3);
+            $this->release();
+            mailchimp_error('order_submit.error', mailchimp_error_trace($e, "RateLimited :: #{$this->id}"));
         } catch (\Exception $e) {
             $message = strtolower($e->getMessage());
             mailchimp_error('order_submit.tracing_error', $e);
             if (!isset($order)) {
                 // transform the order
-                $order = $job->transform(get_post($this->order_id));
+                $order = $job->transform(get_post($this->id));
                 $this->cart_session_id = $order->getCustomer()->getId();
             }
             // this can happen when a customer changes their email.
@@ -223,7 +274,7 @@ class MailChimp_WooCommerce_Single_Order extends WP_Job
                     }
                     return $api_response;
                 } catch (\Exception $e) {
-                    mailchimp_error('order_submit.error', mailchimp_error_trace($e, 'deleting-customer-re-add :: #'.$this->order_id));
+                    mailchimp_error('order_submit.error', mailchimp_error_trace($e, 'deleting-customer-re-add :: #'.$this->id));
                 }
             }
         }
@@ -237,14 +288,14 @@ class MailChimp_WooCommerce_Single_Order extends WP_Job
     public function getRealOrderNumber()
     {
         try {
-            if (empty($this->order_id) || !($order_post = get_post($this->order_id))) {
+            if (empty($this->id) || !($order_post = get_post($this->id))) {
                 return false;
             }
             $woo = new WC_Order($order_post);
             return $this->woo_order_number = $woo->get_order_number();
         } catch (\Exception $e) {
             $this->woo_order_number = false;
-            mailchimp_error('order_sync.failure', mailchimp_error_trace($e, "{$this->order_id} could not be loaded"));
+            mailchimp_error('order_sync.failure', mailchimp_error_trace($e, "{$this->id} could not be loaded"));
             return false;
         }
     }
@@ -255,7 +306,7 @@ class MailChimp_WooCommerce_Single_Order extends WP_Job
     public function shouldPreventSubmission()
     {
         try {
-            if (empty($this->order_id) || !($order_post = get_post($this->order_id))) {
+            if (empty($this->id) || !($order_post = get_post($this->id))) {
                 return false;
             }
             $woo = new WC_Order($order_post);

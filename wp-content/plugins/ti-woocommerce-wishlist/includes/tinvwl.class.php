@@ -40,6 +40,12 @@ class TInvWL {
 	 * @var TInvWL_Public_TInvWL
 	 */
 	public $object_public;
+	/**
+	 * Array of deprecated hook handlers.
+	 *
+	 * @var array of WC_Deprecated_Hooks
+	 */
+	public $deprecated_hook_handlers = array();
 
 	/**
 	 * Constructor
@@ -56,7 +62,7 @@ class TInvWL {
 		$this->object_admin = new TInvWL_Admin_TInvWL( $this->_name, $this->_version );
 
 		// Allow to disable wishlist for frontend conditionally. Must be hooked on 'plugins_loaded' action.
-		if ( apply_filters( 'tinvwl-load_frontend', true ) ) {
+		if ( apply_filters( 'tinvwl_load_frontend', true ) ) {
 			$this->object_public = TInvWL_Public_TInvWL::instance( $this->_name, $this->_version );
 		}
 	}
@@ -77,17 +83,28 @@ class TInvWL {
 			$this->object_admin->load_function();
 		} else {
 			// Allow to disable wishlist for frontend conditionally. Must be hooked on 'plugins_loaded' action.
-			if ( apply_filters( 'tinvwl-load_frontend', true ) ) {
+			if ( apply_filters( 'tinvwl_load_frontend', true ) ) {
 				$this->object_public->load_function();
 			}
 		}
+
+		$this->deprecated_hook_handlers['actions'] = new TInvWL_Deprecated_Actions();
+		$this->deprecated_hook_handlers['filters'] = new TInvWL_Deprecated_Filters();
+		$this->rest_api                            = TInvWL_API::init();
 	}
 
 	/**
 	 * Set localization
 	 */
 	private function set_locale() {
-		$locale  = apply_filters( 'plugin_locale', get_locale(), TINVWL_DOMAIN );
+		if ( function_exists( 'determine_locale' ) ) {
+			$locale = determine_locale();
+		} else {
+			$locale = is_admin() && function_exists( 'get_user_locale' ) ? get_user_locale() : get_locale();
+		}
+
+		$locale = apply_filters( 'plugin_locale', $locale, TINVWL_DOMAIN );
+
 		$mofile  = sprintf( '%1$s-%2$s.mo', TINVWL_DOMAIN, $locale );
 		$mofiles = array();
 
@@ -109,7 +126,7 @@ class TInvWL {
 	function define_hooks() {
 		add_filter( 'plugin_action_links_' . plugin_basename( TINVWL_PATH . 'ti-woocommerce-wishlist.php' ), array(
 			$this,
-			'action_links'
+			'action_links',
 		) );
 		add_action( 'after_setup_theme', 'tinvwl_set_utm', 100 );
 	}
@@ -118,10 +135,6 @@ class TInvWL {
 	 * Load function
 	 */
 	function load_function() {
-		if ( tinv_get_option( 'template_checker', 'checked' ) ) {
-			return;
-		}
-		TInvWL_CheckerHook::instance();
 	}
 
 	/**

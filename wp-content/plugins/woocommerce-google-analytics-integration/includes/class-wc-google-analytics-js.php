@@ -155,26 +155,22 @@ class WC_Google_Analytics_JS {
 			$list = "Product List";
 		}
 
-		echo( "
-			<script>
-			(function($) {
-				$( '.products .post-" . esc_js( $product->get_id() ) . " a' ).click( function() {
-					if ( true === $(this).hasClass( 'add_to_cart_button' ) ) {
-						return;
-					}
+		wc_enqueue_js( "
+			$( '.products .post-" . esc_js( $product->get_id() ) . " a' ).click( function() {
+				if ( true === $(this).hasClass( 'add_to_cart_button' ) ) {
+					return;
+				}
 
-					" . self::tracker_var() . "( 'ec:addProduct', {
-						'id': '" . esc_js( $product->get_id() ) . "',
-						'name': '" . esc_js( $product->get_title() ) . "',
-						'category': " . self::product_get_category_line( $product ) . "
-						'position': '" . esc_js( $position ) . "'
-					});
-
-					" . self::tracker_var() . "( 'ec:setAction', 'click', { list: '" . esc_js( $list ) . "' });
-					" . self::tracker_var() . "( 'send', 'event', 'UX', 'click', ' " . esc_js( $list ) . "' );
+				" . self::tracker_var() . "( 'ec:addProduct', {
+					'id': '" . esc_js( $product->get_id() ) . "',
+					'name': '" . esc_js( $product->get_title() ) . "',
+					'category': " . self::product_get_category_line( $product ) . "
+					'position': '" . esc_js( $position ) . "'
 				});
-			})(jQuery);
-			</script>
+
+				" . self::tracker_var() . "( 'ec:setAction', 'click', { list: '" . esc_js( $list ) . "' });
+				" . self::tracker_var() . "( 'send', 'event', 'UX', 'click', ' " . esc_js( $list ) . "' );
+			});
 		" );
 	}
 
@@ -201,7 +197,9 @@ class WC_Google_Analytics_JS {
 	 * Sends the pageview last thing (needed for things like addImpression)
 	 */
 	public static function universal_analytics_footer() {
-		wc_enqueue_js( "" . self::tracker_var() . "( 'send', 'pageview' ); ");
+		if ( apply_filters( 'wc_goole_analytics_send_pageview', true ) ) {
+			wc_enqueue_js( "" . self::tracker_var() . "( 'send', 'pageview' ); " );
+		}
 	}
 
 	/**
@@ -239,12 +237,14 @@ class WC_Google_Analytics_JS {
 			// See https://developers.google.com/analytics/devguides/collection/analyticsjs/events for reference
 			$track_404_enabled = "" . self::tracker_var() . "( 'send', 'event', 'Error', '404 Not Found', 'page: ' + document.location.pathname + document.location.search + ' referrer: ' + document.referrer );";
 		}
+		
+		$src = apply_filters('woocommerce_google_analytics_script_src', '//www.google-analytics.com/analytics.js');
 
 		$ga_snippet_head = "(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
 		(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
 		m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-		})(window,document,'script','//www.google-analytics.com/analytics.js','" . self::tracker_var() . "');";
-		
+		})(window,document,'script', '{$src}','" . self::tracker_var() . "');";
+
 		$ga_id = self::get( 'ga_id' );
 		$ga_snippet_create = self::tracker_var() . "( 'create', '" . esc_js( $ga_id ) . "', '" . $set_domain_name . "' );";
 
@@ -480,7 +480,7 @@ class WC_Google_Analytics_JS {
 		echo( "
 			<script>
 			(function($) {
-				$( '.remove' ).click( function() {
+				$( document.body ).on( 'click', '.remove', function() {
 					" . self::tracker_var() . "( 'ec:addProduct', {
 						'id': ($(this).data('product_sku')) ? ($(this).data('product_sku')) : ('#' + $(this).data('product_id')),
 						'quantity': $(this).parent().parent().find( '.qty' ).val() ? $(this).parent().parent().find( '.qty' ).val() : '1',

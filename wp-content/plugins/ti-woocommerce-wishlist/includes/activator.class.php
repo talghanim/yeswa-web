@@ -206,6 +206,7 @@ class TInvWL_Activator {
 	 *            array    'field'        Array fields.
 	 *            string    'charset'    Charset table.
 	 *            string    'key'        Primary key.
+	 *            string    'index'       Custom index.
 	 *            string    'post'        Custom elements in format SQL.
 	 *
 	 * @return string
@@ -213,6 +214,7 @@ class TInvWL_Activator {
 	public static function table( $name, $table ) {
 		$name   = self::$wpdb_prefix . self::$_name . '_' . $name;
 		$fields = $table['field'];
+		$index  = ( isset( $table['index'] ) ) ? $table['index'] : null;
 		$table  = filter_var_array( $table, array(
 			'charset' => FILTER_SANITIZE_STRING,
 			'key'     => FILTER_SANITIZE_STRING,
@@ -267,13 +269,19 @@ class TInvWL_Activator {
 		} else {
 			$table['post'] = ', ' . $table['post'];
 		}
+		$indexes = '';
+		if ( $index ) {
+			foreach ( $index as $index_name => $columns ) {
+				$indexes = sprintf( ', INDEX %s (%s)', $index_name, $columns );
+			}
+		}
 
 		foreach ( $fields as $key => $format ) {
 			$fields[ $key ] = self::field( $key, $format );
 		}
 		$fields = implode( ', ', $fields );
 
-		$sql = sprintf( 'CREATE TABLE IF NOT EXISTS `%s` ( %s%s%s) %s; ', $name, $fields, $table['key'], $table['post'], $table['charset'] );
+		$sql = sprintf( 'CREATE TABLE IF NOT EXISTS `%s` ( %s%s%s%s) %s; ', $name, $fields, $table['key'], $indexes, $table['post'], $table['charset'] );
 
 		return $sql;
 	}
@@ -294,7 +302,7 @@ class TInvWL_Activator {
 	public static function field( $name, $newformat ) {
 		$format = array( 'TEXT', null, false, null, false );
 
-		foreach ( $format as $key => $value ) {
+		foreach ( array_keys( $format ) as $key ) {
 			if ( array_key_exists( $key, $newformat ) ) {
 				$format[ $key ] = $newformat[ $key ];
 			}
@@ -324,11 +332,11 @@ class TInvWL_Activator {
 	/**
 	 * Created tables from array
 	 *
-	 * @global wpdb $wpdb
-	 *
 	 * @param array $tables Array tables.
 	 *
 	 * @return boolean
+	 * @global wpdb $wpdb
+	 *
 	 */
 	public static function create( $tables ) {
 		global $wpdb;
@@ -350,11 +358,11 @@ class TInvWL_Activator {
 	/**
 	 * Upgrade tables from array
 	 *
-	 * @global wpdb $wpdb
-	 *
 	 * @param array $tables Array tables.
 	 *
 	 * @return boolean
+	 * @global wpdb $wpdb
+	 *
 	 */
 	public static function upgrade( $tables ) {
 
@@ -372,11 +380,11 @@ class TInvWL_Activator {
 	/**
 	 * Get columns for exist table.
 	 *
-	 * @global wpdb $wpdb
-	 *
 	 * @param string $name Table name.
 	 *
 	 * @return array
+	 * @global wpdb $wpdb
+	 *
 	 */
 	public static function upgrade_get_columns( $name ) {
 		global $wpdb;
@@ -393,12 +401,12 @@ class TInvWL_Activator {
 	/**
 	 * Apply upgrade action
 	 *
-	 * @global wpdb $wpdb
-	 *
 	 * @param string $name Name Table.
 	 * @param array $table Structured array table.
 	 *
 	 * @return boolean
+	 * @global wpdb $wpdb
+	 *
 	 */
 	public static function upgrade_action( $name, $table ) {
 
@@ -445,9 +453,10 @@ class TInvWL_Activator {
 	 * Apply upgrade action
 	 * Truncate table
 	 *
+	 * @param string $name Table name.
+	 *
 	 * @global wpdb $wpdb
 	 *
-	 * @param string $name Table name.
 	 */
 	public static function upgrade_action_truncate( $name ) {
 		global $wpdb;
@@ -458,9 +467,10 @@ class TInvWL_Activator {
 	 * Apply upgrade action
 	 * Drop table
 	 *
+	 * @param string $name Table name.
+	 *
 	 * @global wpdb $wpdb
 	 *
-	 * @param string $name Table name.
 	 */
 	public static function upgrade_action_drop( $name ) {
 		global $wpdb;
@@ -472,13 +482,13 @@ class TInvWL_Activator {
 	 * Apply upgrade action
 	 * Rename table
 	 *
-	 * @global wpdb $wpdb
-	 *
 	 * @param string $name Table name.
 	 * @param array $table Not used.
 	 * @param array $upgrade Upgrade fields.
 	 *
 	 * @return boolean
+	 * @global wpdb $wpdb
+	 *
 	 */
 	public static function upgrade_action_rename_table( $name, $table, $upgrade ) {
 		global $wpdb;
@@ -498,10 +508,11 @@ class TInvWL_Activator {
 	 * Apply upgrade action
 	 * Update fields table
 	 *
-	 * @global wpdb $wpdb
-	 *
 	 * @param string $name Table name.
 	 * @param array $table Table array.
+	 *
+	 * @global wpdb $wpdb
+	 *
 	 */
 	public static function upgrade_action_update_fields( $name, $table ) {
 		global $wpdb;
@@ -535,15 +546,39 @@ class TInvWL_Activator {
 
 	/**
 	 * Apply upgrade action
-	 * Update field table
+	 * Add table index
+	 *
+	 * @param string $name Table name.
+	 * @param array $table Table array.
 	 *
 	 * @global wpdb $wpdb
+	 *
+	 */
+	public static function upgrade_action_add_index( $name, $table ) {
+		global $wpdb;
+
+		$indexes = $table['index'];
+
+		foreach ( $indexes as $index => $columns ) {
+
+			$sql = sprintf( 'ALTER TABLE `%s` ADD INDEX %s (%s);', $name, $index, $columns );
+
+			$wpdb->query( $sql ); // WPCS: db call ok; no-cache ok; unprepared SQL ok.
+
+		}
+	}
+
+	/**
+	 * Apply upgrade action
+	 * Update field table
 	 *
 	 * @param string $name Table name.
 	 * @param array $table Table array.
 	 * @param array $upgrade Upgrade fields.
 	 *
 	 * @return boolean
+	 * @global wpdb $wpdb
+	 *
 	 */
 	public static function upgrade_action_update_field( $name, $table, $upgrade ) {
 		global $wpdb;
@@ -587,13 +622,13 @@ class TInvWL_Activator {
 	 * Apply upgrade action
 	 * Rename field.
 	 *
-	 * @global wpdb $wpdb
-	 *
 	 * @param string $name Table name.
 	 * @param array $table Table array.
 	 * @param array $upgrade Upgrade fields.
 	 *
 	 * @return boolean
+	 * @global wpdb $wpdb
+	 *
 	 */
 	public static function upgrade_action_rename_field( $name, $table, $upgrade ) {
 		global $wpdb;
@@ -627,13 +662,13 @@ class TInvWL_Activator {
 	 * Apply upgrade action
 	 * Use sql.
 	 *
-	 * @global wpdb $wpdb
-	 *
 	 * @param string $name Table name.
 	 * @param array $table Not used.
 	 * @param array $upgrade Upgrade fields.
 	 *
 	 * @return boolean
+	 * @global wpdb $wpdb
+	 *
 	 */
 	public static function upgrade_action_sql( $name, $table, $upgrade ) {
 		global $wpdb;
@@ -648,11 +683,11 @@ class TInvWL_Activator {
 	/**
 	 * Destroy tables from array
 	 *
-	 * @global wpdb $wpdb
-	 *
 	 * @param type $tables Array tables.
 	 *
 	 * @return boolean
+	 * @global wpdb $wpdb
+	 *
 	 */
 	public static function destroy( $tables ) {
 		global $wpdb;
@@ -688,7 +723,7 @@ class TInvWL_Activator {
 			'first++'  => array( 'BIGINT', null, false, null, true ),
 			'int_0'    => array( 'BIGINT', null, false, 0 ),
 			'int_1'    => array( 'BIGINT', null, false, 1 ),
-			'text'     => array( 'TEXT' ),
+			'text'     => array( 'TEXT', null, true, null ),
 			'longtext' => array( 'LONGTEXT' ),
 			'date'     => array( 'DATETIME', null, false, '0000-00-00 00:00:00' ),
 			'bool'     => array( 'TINYINT', 1, false, 1 ),
@@ -698,8 +733,8 @@ class TInvWL_Activator {
 	/**
 	 * Database
 	 *
-	 * @since             1.0.0
 	 * @return array
+	 * @since             1.0.0
 	 */
 	private static function database_1_0_0() {
 		$t = array(
@@ -740,8 +775,8 @@ class TInvWL_Activator {
 	/**
 	 * Database
 	 *
-	 * @since             1.5.0
 	 * @return array
+	 * @since             1.5.0
 	 */
 	private static function database_1_5_0() {
 		return array(
@@ -770,8 +805,8 @@ class TInvWL_Activator {
 	/**
 	 * Database
 	 *
-	 * @since             1.8.13
 	 * @return array
+	 * @since             1.8.13
 	 */
 	private static function database_1_8_13() {
 		$t = array(
@@ -815,6 +850,68 @@ class TInvWL_Activator {
 					array(
 						'action' => 'update_fields',
 					),
+				),
+			),
+		);
+	}
+
+	/**
+	 * Database
+	 *
+	 * @return array
+	 * @since             1.9.16
+	 */
+	private static function database_1_9_16() {
+
+		return array(
+			'items' => array(
+				'field'   => array(
+					'ID'           => 'first++',
+					'wishlist_id'  => 'int_0',
+					'product_id'   => 'int_0',
+					'variation_id' => 'int_0',
+					'formdata'     => 'text',
+					'author'       => 'int_0',
+					'date'         => 'date',
+					'quantity'     => 'int_1',
+					'price'        => array( 'VARCHAR', 255, false, 0 ),
+					'in_stock'     => 'bool',
+				),
+				'upgrade' => array(
+					array(
+						'action' => 'update_fields',
+					),
+				),
+			),
+		);
+	}
+
+	/**
+	 * Database
+	 *
+	 * @return array
+	 * @since             1.10.0
+	 */
+	private static function database_1_10_0() {
+
+		return array(
+			'analytics' => array(
+				'field' => array(
+					'ID'               => array( 'VARCHAR', 32 ),
+					'wishlist_id'      => 'int_0',
+					'product_id'       => 'int_0',
+					'variation_id'     => 'int_0',
+					'visite_author'    => 'int_0',
+					'visite'           => 'int_0',
+					'click_author'     => 'int_0',
+					'click'            => 'int_0',
+					'cart'             => 'int_0',
+					'sell_of_wishlist' => 'int_0',
+					'sell_as_gift'     => 'int_0',
+				),
+				'key'   => 'ID',
+				'index' => array(
+					'unique_product' => 'wishlist_id, product_id, variation_id',
 				),
 			),
 		);
