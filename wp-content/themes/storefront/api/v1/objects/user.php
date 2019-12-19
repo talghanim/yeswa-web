@@ -2830,7 +2830,7 @@ class User{
                 $product_pending_payment_count = array_unique($product_pending_payment_count,SORT_REGULAR);
                 //$product_pending_payment_count = array_unique($product_pending_payment_count);
                 foreach ($product_pending_payment_count as $key => $value) {
-                    $query = "SELECT meta_value FROM ".$this->table_postmeta." WHERE meta_key='_sale_price' AND post_id=".$value[product_id].""; //print_r($query);
+                    $query = "SELECT meta_value FROM ".$this->table_postmeta." WHERE meta_key='_price' AND post_id=".$value[product_id].""; //print_r($query);
                     $stmt = $this->conn->prepare($query);
                     $stmt->execute(); 
                     $pending_amount[$i] = $stmt->fetchAll(PDO::FETCH_ASSOC);
