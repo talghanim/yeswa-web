@@ -28,27 +28,38 @@ if($_SERVER['REQUEST_METHOD'] == "PUT"){
         if(empty($token)){
         //if($validate_token){
             $user->femail = $data['email'];
-            if($info = $user->reset_password()){
+            $user->password = $data['password'];
+            $user->confirm_password = $data['confirm_password'];
 
-                // create array
+            if(strcmp($password,$confirm_password) == 0) {
+                if($info = $user->reset_password()){
+                    // create array
+                    $user_arr=array(
+                        "status" => true,
+                        "message" => "Reset password has been sent to your email!!",
+                        "request url" => 'BaseUrl/'. $endpoint.'?'.$requesturl[1],
+                        "end point" => $endpoint1[0],
+                        //"data" => $info,
+                        //"username" => $row['username']
+                    );
+                }else{
+                    $user_arr=array(
+                        //"value" => $stmt,
+                        "status" => false,
+                        "message" => "Email Not Found !",
+                        "request url" => 'BaseUrl/'. $endpoint.'?'.$requesturl[1],
+                        "end point" => $endpoint1[0],
+                    );
+                }
+            } else {
                 $user_arr=array(
-                    "status" => true,
-                    "message" => "Reset password has been sent to your email!!",
-                    "request url" => 'BaseUrl/'. $endpoint.'?'.$requesturl[1],
-                    "end point" => $endpoint1[0],
-                    //"data" => $info,
-                    //"username" => $row['username']
-                );
-            }
-            else{
-                $user_arr=array(
-                    //"value" => $stmt,
                     "status" => false,
-                    "message" => "Email Not Found !",
+                    "message" => "Password do not match",
                     "request url" => 'BaseUrl/'. $endpoint.'?'.$requesturl[1],
                     "end point" => $endpoint1[0],
                 );
             }
+            
     } else {
         $user_arr=array(
                     //"value" => $stmt,

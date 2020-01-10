@@ -251,20 +251,18 @@ class User{
             if($stmt->rowCount() > 0){
                 $user_detail = $stmt->fetch(PDO::FETCH_ASSOC);  
                 $user = new WP_User( intval($user_detail[ID]) );
-				//echo "<pre>"; print_r(); die;
-                $random_password = wp_generate_password( 12, false );
-                $encrypt_pass = wp_hash_password($random_password);
-                //print_r($encrypt_pass); die;
-                //
+				
+                $random_password = $this->password;
+
                 wp_set_password( $random_password, $user->ID );
                 
-                $to = $this->femail;
+                /*$to = $this->femail;
                 $subject = 'Yeswa key to reset password';
                 //$body = $response1->shortLink;  // previewLink
                 $body = '<p>Hi,</p><p>Your key to reset password for Yeswa app is: '.$random_password.'<br></p><p>Regards<br>All at Yeswa</p>';
                 $headers1 = array('Content-Type: text/html; charset=UTF-8');
 
-                wp_mail( $to, $subject, $body, $headers1 );
+                wp_mail( $to, $subject, $body, $headers1 );*/
                 //return $pass_reset_link;
                 return true;
             }
