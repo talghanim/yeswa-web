@@ -20,18 +20,18 @@ if($_SERVER['REQUEST_METHOD'] == "PUT"){
          
         // prepare user object
         $user = new User($db);
-        //$validate = new Validate_token($db);
+        $validate = new Validate_token($db);
         $token = $user->getBearerToken(); 
-         //$validate_token = $validate->validate_token($token);
+        $validate_token = $validate->validate_token($token);
         $data = json_decode(file_get_contents('php://input'),true);
 	
-        if(empty($token)){
+        if($validate_token){
         //if($validate_token){
             $user->femail = $data['email'];
             $user->password = $data['password'];
             $user->confirm_password = $data['confirm_password'];
 
-            if(strcmp($password,$confirm_password) == 0) {
+            if(strcmp($data['password'],$data['confirm_password']) == 0) {
                 if($info = $user->reset_password()){
                     // create array
                     $user_arr=array(
