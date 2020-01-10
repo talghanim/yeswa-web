@@ -12,7 +12,7 @@ $endpoint1 = explode('.', $endpoint);
 if($_SERVER['REQUEST_METHOD'] == "PUT"){
         include_once '../config/database.php';
         include_once '../objects/user.php';
-        //include_once 'validate_token.php';
+        include_once 'validate_token.php';
          
         // get database connection
         $database = new Database();
