@@ -2345,7 +2345,7 @@ class User{
         } //print_r($cat_names);
         return $cat_names;
     }
-    public function brandslisting_copy($brand_name)
+    public function brandslisting_copy($brand_name=null)
         {  
            $brand_name = $this->brand_name;
         if($brand_name==""){
