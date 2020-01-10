@@ -36,7 +36,7 @@ if($_SERVER['REQUEST_METHOD'] == "PUT"){
                     // create array
                     $user_arr=array(
                         "status" => true,
-                        "message" => "Reset password has been sent to your email!!",
+                        "message" => "Reset password has been updated successfully",
                         "request url" => 'BaseUrl/'. $endpoint.'?'.$requesturl[1],
                         "end point" => $endpoint1[0],
                         //"data" => $info,
