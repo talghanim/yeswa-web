@@ -215,7 +215,7 @@ class User{
     }
     function forgetpass(){	
 		
-        define( 'API_ACCESS_KEY', 'AIzaSyBpSM0qUzD3x1Z0U3Ru4WHMUU8PxpIykJs' ); // AIzaSyDtY_FUGSOSWD_vkmcmhmyVh8kmt31pA5s
+        define( 'API_ACCESS_KEY', 'AAAAhJ63EUE:APA91bE5Of01l9GX1zIbn8nWSlNQTsbKDodXPn8DGnAW0dQKc3aWb9thDyKdUKbYuhed3CGgnsf8BAYDZg5u2DfFp36VEzWyLgqGAhyvi1m-DkcflKCnoj3JORglsodhBtaTf5Uh0IS0' ); // AIzaSyDtY_FUGSOSWD_vkmcmhmyVh8kmt31pA5s
         require(get_template_directory() . '/../../../wp-load.php');  
          $query = "SELECT ID,user_login FROM " . $this->table_name . " WHERE user_email='".$this->femail."'";
             $stmt = $this->conn->prepare($query);
@@ -243,7 +243,7 @@ class User{
             return false;
     }
     function reset_password(){
-        define( 'API_ACCESS_KEY', 'AIzaSyBpSM0qUzD3x1Z0U3Ru4WHMUU8PxpIykJs' ); // AIzaSyDtY_FUGSOSWD_vkmcmhmyVh8kmt31pA5s
+        define( 'API_ACCESS_KEY', 'AAAAhJ63EUE:APA91bE5Of01l9GX1zIbn8nWSlNQTsbKDodXPn8DGnAW0dQKc3aWb9thDyKdUKbYuhed3CGgnsf8BAYDZg5u2DfFp36VEzWyLgqGAhyvi1m-DkcflKCnoj3JORglsodhBtaTf5Uh0IS0' ); // AIzaSyDtY_FUGSOSWD_vkmcmhmyVh8kmt31pA5s
         require(get_template_directory() . '/../../../wp-load.php');  
          $query = "SELECT ID,user_login FROM " . $this->table_name . " WHERE user_email='".$this->femail."'";
             $stmt = $this->conn->prepare($query);
@@ -4371,7 +4371,7 @@ function map() {
         $user = get_user_by( 'ID', $customer_id );      
         $custom_message = "".$user->display_name.", Your order #".$order_detail->id." is on its way!!"; 
         // API access key from Google FCM App Console
-        define( 'API_ACCESS_KEY', 'AIzaSyBpSM0qUzD3x1Z0U3Ru4WHMUU8PxpIykJs' );  //    AIzaSyDtY_FUGSOSWD_vkmcmhmyVh8kmt31pA5s
+        define( 'API_ACCESS_KEY', 'AAAAhJ63EUE:APA91bE5Of01l9GX1zIbn8nWSlNQTsbKDodXPn8DGnAW0dQKc3aWb9thDyKdUKbYuhed3CGgnsf8BAYDZg5u2DfFp36VEzWyLgqGAhyvi1m-DkcflKCnoj3JORglsodhBtaTf5Uh0IS0' );  //    AIzaSyDtY_FUGSOSWD_vkmcmhmyVh8kmt31pA5s
         $query = "SELECT device_id FROM ".$this->table_device_info." WHERE user_id=".$customer_id.""; 
         $stmt = $this->conn->prepare($query);
         $stmt->execute(); 
@@ -4633,7 +4633,7 @@ function map() {
     }
     function push_notify($customer_id,$vendor_id,$customer_message,$vendor_message){
         // API access key from Google FCM App Console
-        define( 'API_ACCESS_KEY', 'AIzaSyBpSM0qUzD3x1Z0U3Ru4WHMUU8PxpIykJs' );  // AIzaSyDtY_FUGSOSWD_vkmcmhmyVh8kmt31pA5s
+        define( 'API_ACCESS_KEY', 'AAAAhJ63EUE:APA91bE5Of01l9GX1zIbn8nWSlNQTsbKDodXPn8DGnAW0dQKc3aWb9thDyKdUKbYuhed3CGgnsf8BAYDZg5u2DfFp36VEzWyLgqGAhyvi1m-DkcflKCnoj3JORglsodhBtaTf5Uh0IS0' );  // AIzaSyDtY_FUGSOSWD_vkmcmhmyVh8kmt31pA5s
 
         // push notification for customer
         if(!empty($customer_id)){   
