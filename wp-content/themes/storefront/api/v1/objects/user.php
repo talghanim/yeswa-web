@@ -2474,6 +2474,11 @@ class User{
         } 
         return $res_categories;
     }
+    function policy_pages($page_id) {
+        $post = get_post( $page_id );
+        
+        return $post;
+    }
     function privacy_policy(){
         $query = "SELECT post_content FROM " . $this->table_posts . " WHERE post_type='page' and post_name='privacy-policy-2'";
         $stmt = $this->conn->prepare($query);
