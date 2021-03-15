@@ -1787,7 +1787,14 @@ class User{
                 $status = 'completed';
             } else if($this->orderstatus == 'cancelled'){
                 $status = 'cancelled';
-            } 
+            } else if($this->orderstatus == 'pending') {
+                $status = 'pending';
+            } else if($this->orderstatus == 'refunded') {
+                $status = 'refunded';
+            } else if($this->orderstatus == 'failed') {
+                $status = 'failed';
+            }
+            
             $query = [
                 'customer' => $this->uid,
                 'per_page' =>100,
