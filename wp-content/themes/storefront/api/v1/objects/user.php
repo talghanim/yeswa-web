@@ -374,7 +374,7 @@ class User{
                             $stmt = $this->conn->prepare($query); 
                             $stmt->execute(); 
 							//print_r($stmt->execute());
-                            $details = $stmt->fetchAll(PDO::FETCH_ASSOC);  
+                            $details = $stmt->fetch(PDO::FETCH_ASSOC);  
 							//print_r($details);
                             $edit_profile_output[gender] = $details[a_gender];
                             $edit_profile_output[birthday] = $details[a_birthdate]; 
