@@ -2487,13 +2487,13 @@ class User{
         return $post;
     }
     function privacy_policy(){
-        $query = "SELECT post_content FROM " . $this->table_posts . " WHERE post_type='page' and post_name='privacy-policy-2'";
+        $query = "SELECT post_content FROM " . $this->table_posts . " WHERE post_type='page' and ID=3";
         $stmt = $this->conn->prepare($query);
         $stmt->execute();
         return $stmt;
     }
     function terms_condition(){
-        $query = "SELECT post_content FROM " . $this->table_posts . " WHERE post_type='page' and post_name='terms-conditions'";
+        $query = "SELECT post_content FROM " . $this->table_posts . " WHERE post_type='page' and ID=18";
         $stmt = $this->conn->prepare($query);
         $stmt->execute();
         return $stmt;     
