@@ -1313,220 +1313,122 @@ class User{
     }
     
     function productfilter(){  
-        $query ="SELECT meta_value FROM " .$this->table_postmeta." WHERE meta_key='_regular_price' ORDER BY meta_value DESC LIMIT 1";
-        $stmt = $this->conn->prepare($query);
-        $stmt->execute();
-        $row1 = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        $query ="SELECT meta_value FROM " .$this->table_postmeta." WHERE meta_key='_sale_price' ORDER BY meta_value DESC LIMIT 1";
-        $stmt = $this->conn->prepare($query);
-        $stmt->execute();
-        $row2 = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $tax_key = 0;
+        $meta_key = 0;
 
-        $query ="SELECT meta_value FROM " .$this->table_postmeta." WHERE meta_key='_price' ORDER BY meta_value DESC LIMIT 1";
-        $stmt = $this->conn->prepare($query);
-        $stmt->execute();
-        $row3 = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $data_query = array();
+        $data_query['post_type'] = array('product');
+        $data_query['post_status'] = array('publish');
+        $data_query['posts_per_page'] = -1;
 
-        $maxpricefinal = array($row1[0]['meta_value'],$row2[0]['meta_value'], $row3[0]['meta_value']);  
-        if(!empty($this->minprice)){
-        $min_price = $this->minprice;
-        } else {
-        $min_price = 0;
+        if(!empty($this->minprice) || !empty($this->maxprice)) {
+
+            $this->minprice = (isset($this->minprice) && !empty($this->minprice)) ? $this->minprice : 0 ;
+            $this->maxprice = (isset($this->maxprice) && !empty($this->maxprice)) ? $this->maxprice : 0 ;
+
+            $data_query['meta_query'] = array();
+            $data_query['meta_query']['relation'] = 'OR';
+
+            $data_query['meta_query'][$meta_key]['relation'] = 'AND';
+
+            $data_query['meta_query'][$meta_key][0]['key'] = '_regular_price';
+            $data_query['meta_query'][$meta_key][0]['value'] = $this->minprice;
+            $data_query['meta_query'][$meta_key][0]['compare'] = '>=';
+
+            $data_query['meta_query'][$meta_key][1]['key'] = '_regular_price';
+            $data_query['meta_query'][$meta_key][1]['value'] = $this->maxprice;
+            $data_query['meta_query'][$meta_key][1]['compare'] = '<='; 
+
+            $meta_key = $meta_key+1;  
+
+            $data_query['meta_query'][$meta_key]['relation'] = 'AND';
+
+            $data_query['meta_query'][$meta_key][0]['key'] = '_sale_price';
+            $data_query['meta_query'][$meta_key][0]['value'] = $this->minprice;
+            $data_query['meta_query'][$meta_key][0]['compare'] = '>=';
+
+            $data_query['meta_query'][$meta_key][1]['key'] = '_sale_price';
+            $data_query['meta_query'][$meta_key][1]['value'] = $this->maxprice;
+            $data_query['meta_query'][$meta_key][1]['compare'] = '<='; 
+
+            $meta_key = $meta_key+1;
+
+            $data_query['meta_query'][$meta_key]['relation'] = 'AND';
+
+            $data_query['meta_query'][$meta_key][0]['key'] = '_price';
+            $data_query['meta_query'][$meta_key][0]['value'] = $this->minprice;
+            $data_query['meta_query'][$meta_key][0]['compare'] = '>=';
+
+            $data_query['meta_query'][$meta_key][1]['key'] = '_price';
+            $data_query['meta_query'][$meta_key][1]['value'] = $this->maxprice;
+            $data_query['meta_query'][$meta_key][1]['compare'] = '<=';
+
+            $meta_key = $meta_key+1;
         }
-        if(!empty($this->maxprice)){
-        $max_price = $this->maxprice;
-        } else {
-        $max_price = max($maxpricefinal);   
-        } 
+
+        if((!empty($this->color) && is_array($this->color)) || (!empty($this->brand) && is_array($this->brand)) || (!empty($this->size) && is_array($this->size))) {
+            $data_query['tax_query'] = array();
+            $data_query['tax_query']['relation'] = 'AND';
+        }
         
-        $query ="SELECT post_id FROM " .$this->table_postmeta." WHERE (meta_key='_price' and (meta_value < ".$max_price." AND meta_value > ".$min_price ." )) OR (meta_key='_sale_price' and (meta_value < ".$max_price." AND meta_value > ".$min_price ." )) OR (meta_key='_regular_price' and (meta_value < ".$max_price." AND meta_value > ".$min_price ." ))  GROUP BY  post_id";
-        $stmt = $this->conn->prepare($query);
-        $stmt->execute();
-        $row = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        $productdetailfetch=array();
+        if(!empty($this->color) && is_array($this->color)) {
+            $data_query['tax_query'][$tax_key]['taxonomy'] = 'pa_color';
+            $data_query['tax_query'][$tax_key]['field'] = 'slug';
+            $data_query['tax_query'][$tax_key]['terms'] = $this->color;
+            $data_query['tax_query'][$tax_key]['operator'] = 'IN';
+
+            $tax_key = $tax_key+1; 
+        }
+
+        if(!empty($this->brand) && is_array($this->brand)) {
+            $data_query['tax_query'][$tax_key]['taxonomy'] = 'pa_brand';
+            $data_query['tax_query'][$tax_key]['field'] = 'slug';
+            $data_query['tax_query'][$tax_key]['terms'] = $this->brand;
+            $data_query['tax_query'][$tax_key]['operator'] = 'IN';
+
+            $tax_key = $tax_key+1; 
+        }
+
+        if(!empty($this->size) && is_array($this->size)) {
+            $data_query['tax_query'][$tax_key]['taxonomy'] = 'pa_size';
+            $data_query['tax_query'][$tax_key]['field'] = 'slug';
+            $data_query['tax_query'][$tax_key]['terms'] = $this->size;
+            $data_query['tax_query'][$tax_key]['operator'] = 'IN';
+        }
+
+        $results = new WP_Query( $data_query );
+
+        $results = $results->posts;
         
-        if(empty($this->color1[0]['term_id'])){
-            $query = "SELECT term_id FROM " .$this->table_terms. " WHERE ";
-            $ip=0;
-            foreach ($this->color as $key => $value) {
-                if($ip!=0){
-                    $query .= " OR ";
-                }
-                $query .= "name='".$this->color[$ip]."'";
-                $ip=$ip+1;
-            }            
-            $stmt = $this->conn->prepare($query);
-            $stmt->execute();
-            $attribute=array();
-            $row1 = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            $term_id=($row1);                    
-        }else {
-            $i=0;
-            foreach ($this->color1 as $key => $value) {   
-                $term_id[$i]['term_id'] = $value['term_id'];
-               $i++;
-            }  
-        }
-        $query = "SELECT object_id FROM " .$this->table_term_relationships. " WHERE ";
-        $ip=0;
-        foreach ($term_id as $key => $value) {
-            if($ip!=0){
-                $query .= " OR ";
-            }
-            $query .= " term_taxonomy_id=".$term_id[$ip]['term_id']."";
-            $ip=$ip+1;
-        }        
-        $stmt = $this->conn->prepare($query);
-        $stmt->execute();        
-        $attribute=array();
-        $row1 = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        $i=1;
-        foreach($row1 as $key=>$value){
-            $attribute[$i][] = $value['object_id'];
-            $i=$i+1;
-        }
-        if(empty($this->brand1[0]['term_id'])){ 
-            $query = "SELECT term_id FROM " .$this->table_terms. " WHERE ";
-            $ip=0;
-            foreach ($this->brand as $key => $value) {
-                if($ip!=0){
-                    $query .= " OR ";
-                }
-                $query .= " name='".$this->brand[$ip]."'";
-                $ip=$ip+1;
-            } 
-            $stmt = $this->conn->prepare($query);
-            $stmt->execute();
-            $attribute=array();
-            $row1 = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            $term_id=($row1);
-                    
-        }else{
-            $i=0;
-            foreach ($this->brand1 as $key => $value) {  
-                $term_id[$i]['term_id'] = $value['term_id'];
-                $i++;
-            }  
-           
-        }
-        $query = "SELECT object_id FROM " .$this->table_term_relationships. " WHERE ";
-        $ip=0;
-        foreach ($term_id as $key => $value) {
-            if($ip!=0){
-                $query .= " OR ";
-            }
-            $query .= "term_taxonomy_id=".$term_id[$ip]['term_id']."";
-            $ip=$ip+1;
-        } 
-        $stmt = $this->conn->prepare($query);
-        $stmt->execute();
-        $attribute=array();
-        $row1 = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        $i=1;
-        foreach($row1 as $key=>$value){  
-            $attribute[$i][] = $value['object_id'];                       
-            $i=$i+1;
-        }
-        if(empty($this->size1[0]['term_id'])){
-            $query = "SELECT term_id FROM " .$this->table_terms. " WHERE ";
-            $ip=0;
-            foreach ($this->size as $key => $value) {
-                if($ip!=0){
-                    $query .= " OR ";
-                }
-                $query .= "name='".$this->size[$ip]."'";
-                $ip=$ip+1;
-            }      
-            $stmt = $this->conn->prepare($query);
-            $stmt->execute();
-            $attribute=array();
-            $row10 = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            $term_id=($row10);
-        } else {                    
-                $i=0;
-                foreach ($this->size1 as $key => $value) {   
-                    $term_id[$i]['term_id'] = $value['term_id'];
-                    $i++;
-                }  
-            }                   
-        $query = "SELECT object_id FROM " .$this->table_term_relationships. " WHERE ";
-        $ip=0;
-        foreach ($term_id as $key => $value) {
-            if($ip!=0){
-                $query .= " OR ";
-            }
-            $query .= " term_taxonomy_id=".$term_id[$ip]['term_id']."";
-            $ip=$ip+1;
-        }                    
-        $stmt = $this->conn->prepare($query);
-        $stmt->execute();                    
-        $attribute=array();
-        $row3 = $stmt->fetchAll(PDO::FETCH_ASSOC);                    
-        $i=1;
-        foreach($row3 as $key=>$value){
-            $attribute[$i][] = $value['object_id'];
-                       
-            $i=$i+1;
-        }
-        $r=array();
-        $r1=array();
-        $r3=array();
-        $i=0;
-        foreach ($row as $key => $value) {
-            $r[]=$row[$i]['post_id'];$i=$i+1;
-        }
-        $i=0;
-        foreach ($row1 as $key => $value) {
-            $r1[]=$row1[$i]['object_id'];$i=$i+1;
-        }
-        $i=0;
-        foreach ($row3 as $key => $value) {
-            $r3[]=$row3[$i]['object_id'];$i=$i+1;
-        }
-        $t=array();
-        //print_r($r);
-        //print_r($r1);
-        //print_r($r3);
-        $cr=count($r);
-        $cr1=count($r1);
-        $cr3=count($r3);
-        for($i=0;$i<$cr;$i++){
-            //a:
-            for($j=0;$j<$cr1;$j++){
-                if($r[$i]==$r1[$j]){
-                    for($k=0;$k<$cr3;$k++){
-                        if($r1[$j]==$r3[$k]){
-                            $t[]=$r3[$k];
-                            break;
-                        }
-                    }
-                }
-            }
-        }
         if($this->popularity == 'most_sold') {
             $i=0;
-            foreach ($t as $key => $value) {
-                $total[$i]['key'] = $value;
-                $total_sales = get_post_meta($value,'total_sales');
+            foreach ($results as $key => $value) {
+                $total[$i]['key'] = $value->ID;
+                $total_sales = get_post_meta($value->ID,'total_sales');
                 $total[$i]['total_sales'] = $total_sales[0];
                 $i++;
-            }   
+            } 
 
             $sort_sold = array_column($total, 'total_sales');
 
-            array_multisort($sort_sold, SORT_DESC, $total);
-                           
+            array_multisort($sort_sold, SORT_DESC, $total); 
+
             $j=0;
             foreach ($total as $key1 => $value1) {
-                $t[$j] = $value1['key'];
+                $data[$j] = $value1['key'];
                 $j++; 
-            }   
-            return $t;
+            }  
 
+            return $data;
         } else {
-                return $t;
+            $j=0;
+            foreach ($results as $key1 => $value1) {
+                $data[$j] = $value1->ID;
+                $j++; 
             } 
+            return $data;
+        }
     }
 
    public function getallproduct($productid){ 
