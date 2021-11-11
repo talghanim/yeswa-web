@@ -44,27 +44,23 @@ class User{
     }
 
     // signup user 
-    function create_user(){  
+    function create_user(){ 
+
         $query = "SELECT * FROM ".$this->table_name. " WHERE user_login='".$this->username."' OR user_email='".$this->useremail."'"; 
         $stmt = $this->conn->prepare($query);
         $stmt->execute();
-        if(empty($stmt->rowCount())){ 
 
+        if(empty($stmt->rowCount())) { 
 
-          //  $user_id = username_exists( $this->username );
-        if ( !$user_id and email_exists($this->useremail) == false ) {
-           // $random_password = wp_generate_password( $length=12, $include_standard_special_chars=false );
-            
-            $user_id = wp_create_user( $this->username, $this->userpassword, $this->useremail );   
-            //$user_id->set_role('vendor_manager');
-            wp_set_password( $this->userpassword, $user_id );
-            //$user = get_user_by( 'email', $this->username ); print_r($user);
-            //$user->add_role('vendor_user');
-        } else {
-            $random_password = __('User already exists.  Password inherited.');
-        }
+            if ( !$user_id and email_exists($this->useremail) == false ) {
+                
+                $user_id = wp_create_user( $this->username, $this->userpassword, $this->useremail ); 
 
-            //print_r($user_id);
+                wp_set_password( $this->userpassword, $user_id );
+            } else {
+                $random_password = __('User already exists.  Password inherited.');
+            }
+
             $query = "UPDATE " . $this->table_name . " SET user_login='" .$this->username. "',user_email='" .$this->useremail. "' ,user_registered='" .date('Y-m-d H:i:s') . "' WHERE ID=".$user_id.""; 
             $stmt = $this->conn->prepare($query);
             $stmt->execute();
@@ -73,14 +69,10 @@ class User{
              $user->set_role('customer');  // print_r($user);
 
 
-            $query = "UPDATE " . $this->table_namemeta . " SET meta_value='" .$this->user_firstname. "' WHERE user_id=".$user_id." AND meta_key='first_name'";
-            $stmt = $this->conn->prepare($query); 
-            $stmt->execute();   
-
-            $query = "UPDATE " . $this->table_namemeta . " SET meta_value='" .$this->user_lastname. "' WHERE user_id=".$user_id." AND meta_key='last_name'";
-            $stmt = $this->conn->prepare($query);
-            $stmt->execute(); 
-
+            update_user_meta( $user_id, 'first_name', $this->user_firstname);
+            update_user_meta( $user_id, 'last_name', $this->user_lastname);
+            update_user_meta( $user_id, 'billing_country', $this->country);
+            update_user_meta( $user_id, 'shipping_country', $this->country);
             
             $query = "INSERT INTO " . $this->table_namemeta . " (user_id,meta_key,meta_value) VALUES (".$user_id .",'billing_phone','".$this->user_phone."')";
             $stmt1 = $this->conn->prepare($query);
@@ -94,18 +86,22 @@ class User{
             $user_info[user_registered] = $user->user_registered;
             $user_info[display_name] = $user->display_name;
             $user_info[mobile] = $this->user_phone;
+            $user_info[country] = $this->country;
 
             $query = "SELECT * FROM ".$this->table_device_info. " ";
             $stmt = $this->conn->prepare($query);
             $stmt->execute();
+
             if($stmt->rowCount() == 0){ 
                 $query = "CREATE TABLE " . $this->table_device_info . " (user_id INT(100) NOT NULL,device_id VARCHAR(700) ,device_type VARCHAR(10))";
                             $stmt = $this->conn->prepare($query);
                             $stmt->execute();
             }
+
             $query = "INSERT INTO " . $this->table_device_info . " (user_id,device_id,device_type) VALUES (".$user_id .",'".$this->device_id."','".$this->device_type."')";
-            $stmt = $this->conn->prepare($query);  //print_r($query);
-            if($stmt->execute()){ //print_r($user_id);
+            $stmt = $this->conn->prepare($query);
+
+            if($stmt->execute()){
                 $user_info[device_id] = $this->device_id;
                 $user_info[device_type] = $this->device_type;
                 return $user_info;
@@ -345,46 +341,33 @@ class User{
         return $img_items;
     }
     function editprofile() { 
-				$msg = array();
-                if($_SERVER['REQUEST_METHOD'] == "GET"){
-                    $query = "SELECT * FROM " . $this->table_name  . " WHERE ID=".$this->fid."";
-                    $stmt = $this->conn->prepare($query);
-                    $stmt->execute();
-                        if($stmt->rowCount() > 0) {
-                            $detail = $stmt->fetch(PDO::FETCH_ASSOC);    
-                            $edit_profile_output[uid] = $detail[ID];
-                            $edit_profile_output[full_name] = $detail[display_name];
-                            $edit_profile_output[user_name] = $detail[user_login];
-                            $edit_profile_output[user_email] = $detail[user_email];
+		$msg = array();
+        if($_SERVER['REQUEST_METHOD'] == "GET"){
+            $user_data = get_userdata($this->fid);
 
-                            $query = "SELECT meta_key,meta_value FROM " . $this->table_namemeta  . " WHERE user_id=".$this->fid."";
-                            $stmt = $this->conn->prepare($query);
-                            $stmt->execute();
-                            $detailsmeta = $stmt->fetchAll(PDO::FETCH_ASSOC);   
-                            foreach ($detailsmeta as $key => $value) {
-                                if($value[meta_key] == "description"){
-                                    $edit_profile_output[bio] = $value[meta_value];
-                                }
-                                if($value[meta_key] == "billing_phone"){
-                                    $edit_profile_output[mobile] = $value[meta_value];
-                                }
-                            }
+            if(!empty($user_data)) {
+                $edit_profile_output['uid'] = $user_data->data->ID;
+                $edit_profile_output['full_name'] = $user_data->data->display_name;
+                $edit_profile_output['user_name'] = $user_data->data->user_login;
+                $edit_profile_output['user_email'] = $user_data->data->user_email;
+                $edit_profile_output['bio'] = get_user_meta($this->fid, 'description', true);
+                $edit_profile_output['mobile'] = get_user_meta($this->fid, 'billing_phone', true);
+                $edit_profile_output['country'] = get_user_meta($this->fid, 'billing_country', true);
 
-                            $query = "SELECT * FROM " . $this->table_profile_detail  . " WHERE user_id=".$this->fid." LIMIT 1 ";
-                            $stmt = $this->conn->prepare($query); 
-                            $stmt->execute(); 
-							//print_r($stmt->execute());
-                            $details = $stmt->fetch(PDO::FETCH_ASSOC);  
-							//print_r($details);
-                            $edit_profile_output[gender] = $details[a_gender];
-                            $edit_profile_output[birthday] = $details[a_birthdate]; 
-                            $edit_profile_output[image_url] = $details[a_image_url];
-                            //print_r($edit_profile_output);
-                            return $edit_profile_output;
-                        }   else {
-                            return false;
-                        }
-                }
+                $query = "SELECT * FROM " . $this->table_profile_detail  . " WHERE user_id=".$this->fid." LIMIT 1 ";
+                $stmt = $this->conn->prepare($query); 
+                $stmt->execute(); 
+                $details = $stmt->fetch(PDO::FETCH_ASSOC);  
+                
+                $edit_profile_output['gender'] = $details[a_gender];
+                $edit_profile_output['birthday'] = $details[a_birthdate]; 
+                $edit_profile_output['image_url'] = $details[a_image_url];
+                
+                return $edit_profile_output;
+            } else {
+                return false;
+            }
+        }
 
             //$user_info = get_user_by('email',$this->fuseremail);
             $query = "SELECT * FROM ".$this->table_name." WHERE user_email='".$this->fuseremail."'";  
@@ -578,50 +561,43 @@ class User{
             return false;
         }
     }
+
     function profile(){
         $this->fid;
-        $query = "SELECT ID,user_login,user_email,display_name FROM " . $this->table_name . " WHERE ID=".$this->fid ."";
-        $stmt = $this->conn->prepare($query);
-        $stmt->execute(); 
-        if($stmt->rowCount() > 0){
-            $user_info = $stmt->fetch(PDO::FETCH_ASSOC);
-            $user_data[ID] = $user_info[ID];
-            if(!empty($user_info[display_name])){
-                $user_data[display_name] = $user_info[display_name];
-            }
-            $user_data[user_login_name] = $user_info[user_login];
-            $user_data[email] = $user_info[user_email];
-            //return $user_data;
-            $query = "SELECT meta_key,meta_value FROM " . $this->table_namemeta . " WHERE user_id=".$this->fid." AND meta_key IN ('description','billing_phone')";
-            $stmt = $this->conn->prepare($query);
-            $stmt->execute();
-            $user_info = $stmt->fetchAll(PDO::FETCH_ASSOC);// print_r($user_info);
-            
-            foreach ($user_info as $key => $value) {
-                if($value[meta_key] == "description"){
-                    $desc = $value[meta_value];
-                } elseif($value[meta_key] == "billing_phone"){
-                    $billing_phone = $value[meta_value];
-                }
-               // print_r($value);
-                $user_data[description] = $desc; 
-                $user_data[billing_phone] = $billing_phone;
-            }
+
+        $user_info = get_userdata($this->fid);
+
+        if(!empty($user_info)) {
+            $user_data['ID'] = $user_info->data->ID;
+            $user_data['display_name'] = $user_info->data->display_name;
+            $user_data['user_login_name'] = $user_info->data->user_login;
+            $user_data['email'] = $user_info->data->user_email;
+            $user_data['description'] = get_user_meta($this->fid, 'description', true);
+            $user_data['billing_phone'] = get_user_meta($this->fid, 'billing_phone', true);
+            $user_data['country'] = get_user_meta($this->fid, 'billing_country', true);
+
             $query = "SELECT a_image_url FROM " . $this->table_profile_detail. " WHERE user_id=".$this->fid."";
             $stmt = $this->conn->prepare($query);
             $stmt->execute(); 
             $user_img_url = $stmt->fetch(PDO::FETCH_ASSOC); 
-            $user_data[image_url] = $user_img_url[a_image_url];
+            
+            $user_data['image_url'] = $user_img_url[a_image_url];
+
             if($this->address ==1){
                 $query = "SELECT a_title,a_floor,a_apartment,a_street,a_area,a_zip_code,a_paci_number FROM " . $this->table_addressmeta . " WHERE user_id=".$this->fid."";
                 $stmt = $this->conn->prepare($query);
                 $stmt->execute();
                 $user_address = $stmt->fetchAll(PDO::FETCH_ASSOC); 
-                $user_data[address] = $user_address;
+                
+                $user_data['address'] = $user_address;
             }
+
             return $user_data;
+        } else {
+            return false;
         }
     }
+
     function newaddress(){ 
         if(isset( $this->uid)){
             $query = "SELECT * FROM " . $this->table_name . " WHERE ID=".$this->uid ."";
