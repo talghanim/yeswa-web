@@ -85,7 +85,7 @@ class User{
             $user_info[user_registered] = $user->user_registered;
             $user_info[display_name] = $user->display_name;
             $user_info[mobile] = $this->user_phone;
-            $user_info[country] = $this->country_code;
+            $user_info[country_code] = $this->country_code;
 
             $query = "SELECT * FROM ".$this->table_device_info. " ";
             $stmt = $this->conn->prepare($query);
