@@ -1342,12 +1342,12 @@ class User{
             $meta_key = $meta_key+1;
         }
 
-        if((!empty($this->color) && is_array($this->color)) || (!empty($this->brand) && is_array($this->brand)) || (!empty($this->size) && is_array($this->size))) {
+        if((!empty($this->color) && count($this->color) != 0) || (!empty($this->brand) && count($this->brand) != 0) || (!empty($this->size) && count($this->size) != 0)) {
             $data_query['tax_query'] = array();
             $data_query['tax_query']['relation'] = 'AND';
         }
         
-        if(!empty($this->color) && is_array($this->color)) {
+        if(!empty($this->color) && count($this->color) != 0) {
             $data_query['tax_query'][$tax_key]['taxonomy'] = 'pa_color';
             $data_query['tax_query'][$tax_key]['field'] = 'slug';
             $data_query['tax_query'][$tax_key]['terms'] = $this->color;
@@ -1356,7 +1356,7 @@ class User{
             $tax_key = $tax_key+1; 
         }
 
-        if(!empty($this->brand) && is_array($this->brand)) {
+        if(!empty($this->brand) && count($this->brand) != 0) {
             $data_query['tax_query'][$tax_key]['taxonomy'] = 'pa_brand';
             $data_query['tax_query'][$tax_key]['field'] = 'slug';
             $data_query['tax_query'][$tax_key]['terms'] = $this->brand;
@@ -1365,13 +1365,13 @@ class User{
             $tax_key = $tax_key+1; 
         }
 
-        if(!empty($this->size) && is_array($this->size)) {
+        if(!empty($this->size) && count($this->size) != 0) {
             $data_query['tax_query'][$tax_key]['taxonomy'] = 'pa_size';
             $data_query['tax_query'][$tax_key]['field'] = 'slug';
             $data_query['tax_query'][$tax_key]['terms'] = $this->size;
             $data_query['tax_query'][$tax_key]['operator'] = 'IN';
         }
-
+        
         $results = new WP_Query( $data_query );
 
         $results = $results->posts;
