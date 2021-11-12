@@ -44,27 +44,23 @@ class User{
     }
 
     // signup user 
-    function create_user(){  
+    function create_user(){ 
+
         $query = "SELECT * FROM ".$this->table_name. " WHERE user_login='".$this->username."' OR user_email='".$this->useremail."'"; 
         $stmt = $this->conn->prepare($query);
         $stmt->execute();
-        if(empty($stmt->rowCount())){ 
 
+        if(empty($stmt->rowCount())) { 
 
-          //  $user_id = username_exists( $this->username );
-        if ( !$user_id and email_exists($this->useremail) == false ) {
-           // $random_password = wp_generate_password( $length=12, $include_standard_special_chars=false );
-            
-            $user_id = wp_create_user( $this->username, $this->userpassword, $this->useremail );   
-            //$user_id->set_role('vendor_manager');
-            wp_set_password( $this->userpassword, $user_id );
-            //$user = get_user_by( 'email', $this->username ); print_r($user);
-            //$user->add_role('vendor_user');
-        } else {
-            $random_password = __('User already exists.  Password inherited.');
-        }
+            if ( !$user_id and email_exists($this->useremail) == false ) {
+                
+                $user_id = wp_create_user( $this->username, $this->userpassword, $this->useremail ); 
 
-            //print_r($user_id);
+                wp_set_password( $this->userpassword, $user_id );
+            } else {
+                $random_password = __('User already exists.  Password inherited.');
+            }
+
             $query = "UPDATE " . $this->table_name . " SET user_login='" .$this->username. "',user_email='" .$this->useremail. "' ,user_registered='" .date('Y-m-d H:i:s') . "' WHERE ID=".$user_id.""; 
             $stmt = $this->conn->prepare($query);
             $stmt->execute();
@@ -73,14 +69,10 @@ class User{
              $user->set_role('customer');  // print_r($user);
 
 
-            $query = "UPDATE " . $this->table_namemeta . " SET meta_value='" .$this->user_firstname. "' WHERE user_id=".$user_id." AND meta_key='first_name'";
-            $stmt = $this->conn->prepare($query); 
-            $stmt->execute();   
-
-            $query = "UPDATE " . $this->table_namemeta . " SET meta_value='" .$this->user_lastname. "' WHERE user_id=".$user_id." AND meta_key='last_name'";
-            $stmt = $this->conn->prepare($query);
-            $stmt->execute(); 
-
+            update_user_meta( $user_id, 'first_name', $this->user_firstname);
+            update_user_meta( $user_id, 'last_name', $this->user_lastname);
+            update_user_meta( $user_id, 'billing_country', $this->country);
+            update_user_meta( $user_id, 'shipping_country', $this->country);
             
             $query = "INSERT INTO " . $this->table_namemeta . " (user_id,meta_key,meta_value) VALUES (".$user_id .",'billing_phone','".$this->user_phone."')";
             $stmt1 = $this->conn->prepare($query);
@@ -94,18 +86,22 @@ class User{
             $user_info[user_registered] = $user->user_registered;
             $user_info[display_name] = $user->display_name;
             $user_info[mobile] = $this->user_phone;
+            $user_info[country] = $this->country;
 
             $query = "SELECT * FROM ".$this->table_device_info. " ";
             $stmt = $this->conn->prepare($query);
             $stmt->execute();
+
             if($stmt->rowCount() == 0){ 
                 $query = "CREATE TABLE " . $this->table_device_info . " (user_id INT(100) NOT NULL,device_id VARCHAR(700) ,device_type VARCHAR(10))";
                             $stmt = $this->conn->prepare($query);
                             $stmt->execute();
             }
+
             $query = "INSERT INTO " . $this->table_device_info . " (user_id,device_id,device_type) VALUES (".$user_id .",'".$this->device_id."','".$this->device_type."')";
-            $stmt = $this->conn->prepare($query);  //print_r($query);
-            if($stmt->execute()){ //print_r($user_id);
+            $stmt = $this->conn->prepare($query);
+
+            if($stmt->execute()){
                 $user_info[device_id] = $this->device_id;
                 $user_info[device_type] = $this->device_type;
                 return $user_info;
@@ -345,46 +341,33 @@ class User{
         return $img_items;
     }
     function editprofile() { 
-				$msg = array();
-                if($_SERVER['REQUEST_METHOD'] == "GET"){
-                    $query = "SELECT * FROM " . $this->table_name  . " WHERE ID=".$this->fid."";
-                    $stmt = $this->conn->prepare($query);
-                    $stmt->execute();
-                        if($stmt->rowCount() > 0) {
-                            $detail = $stmt->fetch(PDO::FETCH_ASSOC);    
-                            $edit_profile_output[uid] = $detail[ID];
-                            $edit_profile_output[full_name] = $detail[display_name];
-                            $edit_profile_output[user_name] = $detail[user_login];
-                            $edit_profile_output[user_email] = $detail[user_email];
+		$msg = array();
+        if($_SERVER['REQUEST_METHOD'] == "GET"){
+            $user_data = get_userdata($this->fid);
 
-                            $query = "SELECT meta_key,meta_value FROM " . $this->table_namemeta  . " WHERE user_id=".$this->fid."";
-                            $stmt = $this->conn->prepare($query);
-                            $stmt->execute();
-                            $detailsmeta = $stmt->fetchAll(PDO::FETCH_ASSOC);   
-                            foreach ($detailsmeta as $key => $value) {
-                                if($value[meta_key] == "description"){
-                                    $edit_profile_output[bio] = $value[meta_value];
-                                }
-                                if($value[meta_key] == "billing_phone"){
-                                    $edit_profile_output[mobile] = $value[meta_value];
-                                }
-                            }
+            if(!empty($user_data)) {
+                $edit_profile_output['uid'] = $user_data->data->ID;
+                $edit_profile_output['full_name'] = $user_data->data->display_name;
+                $edit_profile_output['user_name'] = $user_data->data->user_login;
+                $edit_profile_output['user_email'] = $user_data->data->user_email;
+                $edit_profile_output['bio'] = get_user_meta($this->fid, 'description', true);
+                $edit_profile_output['mobile'] = get_user_meta($this->fid, 'billing_phone', true);
+                $edit_profile_output['country'] = get_user_meta($this->fid, 'billing_country', true);
 
-                            $query = "SELECT * FROM " . $this->table_profile_detail  . " WHERE user_id=".$this->fid." LIMIT 1 ";
-                            $stmt = $this->conn->prepare($query); 
-                            $stmt->execute(); 
-							//print_r($stmt->execute());
-                            $details = $stmt->fetch(PDO::FETCH_ASSOC);  
-							//print_r($details);
-                            $edit_profile_output[gender] = $details[a_gender];
-                            $edit_profile_output[birthday] = $details[a_birthdate]; 
-                            $edit_profile_output[image_url] = $details[a_image_url];
-                            //print_r($edit_profile_output);
-                            return $edit_profile_output;
-                        }   else {
-                            return false;
-                        }
-                }
+                $query = "SELECT * FROM " . $this->table_profile_detail  . " WHERE user_id=".$this->fid." LIMIT 1 ";
+                $stmt = $this->conn->prepare($query); 
+                $stmt->execute(); 
+                $details = $stmt->fetch(PDO::FETCH_ASSOC);  
+                
+                $edit_profile_output['gender'] = $details[a_gender];
+                $edit_profile_output['birthday'] = $details[a_birthdate]; 
+                $edit_profile_output['image_url'] = $details[a_image_url];
+                
+                return $edit_profile_output;
+            } else {
+                return false;
+            }
+        }
 
             //$user_info = get_user_by('email',$this->fuseremail);
             $query = "SELECT * FROM ".$this->table_name." WHERE user_email='".$this->fuseremail."'";  
@@ -578,50 +561,43 @@ class User{
             return false;
         }
     }
+
     function profile(){
         $this->fid;
-        $query = "SELECT ID,user_login,user_email,display_name FROM " . $this->table_name . " WHERE ID=".$this->fid ."";
-        $stmt = $this->conn->prepare($query);
-        $stmt->execute(); 
-        if($stmt->rowCount() > 0){
-            $user_info = $stmt->fetch(PDO::FETCH_ASSOC);
-            $user_data[ID] = $user_info[ID];
-            if(!empty($user_info[display_name])){
-                $user_data[display_name] = $user_info[display_name];
-            }
-            $user_data[user_login_name] = $user_info[user_login];
-            $user_data[email] = $user_info[user_email];
-            //return $user_data;
-            $query = "SELECT meta_key,meta_value FROM " . $this->table_namemeta . " WHERE user_id=".$this->fid." AND meta_key IN ('description','billing_phone')";
-            $stmt = $this->conn->prepare($query);
-            $stmt->execute();
-            $user_info = $stmt->fetchAll(PDO::FETCH_ASSOC);// print_r($user_info);
-            
-            foreach ($user_info as $key => $value) {
-                if($value[meta_key] == "description"){
-                    $desc = $value[meta_value];
-                } elseif($value[meta_key] == "billing_phone"){
-                    $billing_phone = $value[meta_value];
-                }
-               // print_r($value);
-                $user_data[description] = $desc; 
-                $user_data[billing_phone] = $billing_phone;
-            }
+
+        $user_info = get_userdata($this->fid);
+
+        if(!empty($user_info)) {
+            $user_data['ID'] = $user_info->data->ID;
+            $user_data['display_name'] = $user_info->data->display_name;
+            $user_data['user_login_name'] = $user_info->data->user_login;
+            $user_data['email'] = $user_info->data->user_email;
+            $user_data['description'] = get_user_meta($this->fid, 'description', true);
+            $user_data['billing_phone'] = get_user_meta($this->fid, 'billing_phone', true);
+            $user_data['country'] = get_user_meta($this->fid, 'billing_country', true);
+
             $query = "SELECT a_image_url FROM " . $this->table_profile_detail. " WHERE user_id=".$this->fid."";
             $stmt = $this->conn->prepare($query);
             $stmt->execute(); 
             $user_img_url = $stmt->fetch(PDO::FETCH_ASSOC); 
-            $user_data[image_url] = $user_img_url[a_image_url];
+            
+            $user_data['image_url'] = $user_img_url[a_image_url];
+
             if($this->address ==1){
                 $query = "SELECT a_title,a_floor,a_apartment,a_street,a_area,a_zip_code,a_paci_number FROM " . $this->table_addressmeta . " WHERE user_id=".$this->fid."";
                 $stmt = $this->conn->prepare($query);
                 $stmt->execute();
                 $user_address = $stmt->fetchAll(PDO::FETCH_ASSOC); 
-                $user_data[address] = $user_address;
+                
+                $user_data['address'] = $user_address;
             }
+
             return $user_data;
+        } else {
+            return false;
         }
     }
+
     function newaddress(){ 
         if(isset( $this->uid)){
             $query = "SELECT * FROM " . $this->table_name . " WHERE ID=".$this->uid ."";
@@ -1313,220 +1289,122 @@ class User{
     }
     
     function productfilter(){  
-        $query ="SELECT meta_value FROM " .$this->table_postmeta." WHERE meta_key='_regular_price' ORDER BY meta_value DESC LIMIT 1";
-        $stmt = $this->conn->prepare($query);
-        $stmt->execute();
-        $row1 = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        $query ="SELECT meta_value FROM " .$this->table_postmeta." WHERE meta_key='_sale_price' ORDER BY meta_value DESC LIMIT 1";
-        $stmt = $this->conn->prepare($query);
-        $stmt->execute();
-        $row2 = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $tax_key = 0;
+        $meta_key = 0;
 
-        $query ="SELECT meta_value FROM " .$this->table_postmeta." WHERE meta_key='_price' ORDER BY meta_value DESC LIMIT 1";
-        $stmt = $this->conn->prepare($query);
-        $stmt->execute();
-        $row3 = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $data_query = array();
+        $data_query['post_type'] = array('product');
+        $data_query['post_status'] = array('publish');
+        $data_query['posts_per_page'] = -1;
 
-        $maxpricefinal = array($row1[0]['meta_value'],$row2[0]['meta_value'], $row3[0]['meta_value']);  
-        if(!empty($this->minprice)){
-        $min_price = $this->minprice;
-        } else {
-        $min_price = 0;
+        if(!empty($this->minprice) || !empty($this->maxprice)) {
+
+            $this->minprice = (isset($this->minprice) && !empty($this->minprice)) ? $this->minprice : 0 ;
+            $this->maxprice = (isset($this->maxprice) && !empty($this->maxprice)) ? $this->maxprice : 0 ;
+
+            $data_query['meta_query'] = array();
+            $data_query['meta_query']['relation'] = 'OR';
+
+            $data_query['meta_query'][$meta_key]['relation'] = 'AND';
+
+            $data_query['meta_query'][$meta_key][0]['key'] = '_regular_price';
+            $data_query['meta_query'][$meta_key][0]['value'] = $this->minprice;
+            $data_query['meta_query'][$meta_key][0]['compare'] = '>=';
+
+            $data_query['meta_query'][$meta_key][1]['key'] = '_regular_price';
+            $data_query['meta_query'][$meta_key][1]['value'] = $this->maxprice;
+            $data_query['meta_query'][$meta_key][1]['compare'] = '<='; 
+
+            $meta_key = $meta_key+1;  
+
+            $data_query['meta_query'][$meta_key]['relation'] = 'AND';
+
+            $data_query['meta_query'][$meta_key][0]['key'] = '_sale_price';
+            $data_query['meta_query'][$meta_key][0]['value'] = $this->minprice;
+            $data_query['meta_query'][$meta_key][0]['compare'] = '>=';
+
+            $data_query['meta_query'][$meta_key][1]['key'] = '_sale_price';
+            $data_query['meta_query'][$meta_key][1]['value'] = $this->maxprice;
+            $data_query['meta_query'][$meta_key][1]['compare'] = '<='; 
+
+            $meta_key = $meta_key+1;
+
+            $data_query['meta_query'][$meta_key]['relation'] = 'AND';
+
+            $data_query['meta_query'][$meta_key][0]['key'] = '_price';
+            $data_query['meta_query'][$meta_key][0]['value'] = $this->minprice;
+            $data_query['meta_query'][$meta_key][0]['compare'] = '>=';
+
+            $data_query['meta_query'][$meta_key][1]['key'] = '_price';
+            $data_query['meta_query'][$meta_key][1]['value'] = $this->maxprice;
+            $data_query['meta_query'][$meta_key][1]['compare'] = '<=';
+
+            $meta_key = $meta_key+1;
         }
-        if(!empty($this->maxprice)){
-        $max_price = $this->maxprice;
-        } else {
-        $max_price = max($maxpricefinal);   
-        } 
+
+        if((!empty($this->color) && is_array($this->color)) || (!empty($this->brand) && is_array($this->brand)) || (!empty($this->size) && is_array($this->size))) {
+            $data_query['tax_query'] = array();
+            $data_query['tax_query']['relation'] = 'AND';
+        }
         
-        $query ="SELECT post_id FROM " .$this->table_postmeta." WHERE (meta_key='_price' and (meta_value < ".$max_price." AND meta_value > ".$min_price ." )) OR (meta_key='_sale_price' and (meta_value < ".$max_price." AND meta_value > ".$min_price ." )) OR (meta_key='_regular_price' and (meta_value < ".$max_price." AND meta_value > ".$min_price ." ))  GROUP BY  post_id";
-        $stmt = $this->conn->prepare($query);
-        $stmt->execute();
-        $row = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        $productdetailfetch=array();
+        if(!empty($this->color) && is_array($this->color)) {
+            $data_query['tax_query'][$tax_key]['taxonomy'] = 'pa_color';
+            $data_query['tax_query'][$tax_key]['field'] = 'slug';
+            $data_query['tax_query'][$tax_key]['terms'] = $this->color;
+            $data_query['tax_query'][$tax_key]['operator'] = 'IN';
+
+            $tax_key = $tax_key+1; 
+        }
+
+        if(!empty($this->brand) && is_array($this->brand)) {
+            $data_query['tax_query'][$tax_key]['taxonomy'] = 'pa_brand';
+            $data_query['tax_query'][$tax_key]['field'] = 'slug';
+            $data_query['tax_query'][$tax_key]['terms'] = $this->brand;
+            $data_query['tax_query'][$tax_key]['operator'] = 'IN';
+
+            $tax_key = $tax_key+1; 
+        }
+
+        if(!empty($this->size) && is_array($this->size)) {
+            $data_query['tax_query'][$tax_key]['taxonomy'] = 'pa_size';
+            $data_query['tax_query'][$tax_key]['field'] = 'slug';
+            $data_query['tax_query'][$tax_key]['terms'] = $this->size;
+            $data_query['tax_query'][$tax_key]['operator'] = 'IN';
+        }
+
+        $results = new WP_Query( $data_query );
+
+        $results = $results->posts;
         
-        if(empty($this->color1[0]['term_id'])){
-            $query = "SELECT term_id FROM " .$this->table_terms. " WHERE ";
-            $ip=0;
-            foreach ($this->color as $key => $value) {
-                if($ip!=0){
-                    $query .= " OR ";
-                }
-                $query .= "name='".$this->color[$ip]."'";
-                $ip=$ip+1;
-            }            
-            $stmt = $this->conn->prepare($query);
-            $stmt->execute();
-            $attribute=array();
-            $row1 = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            $term_id=($row1);                    
-        }else {
-            $i=0;
-            foreach ($this->color1 as $key => $value) {   
-                $term_id[$i]['term_id'] = $value['term_id'];
-               $i++;
-            }  
-        }
-        $query = "SELECT object_id FROM " .$this->table_term_relationships. " WHERE ";
-        $ip=0;
-        foreach ($term_id as $key => $value) {
-            if($ip!=0){
-                $query .= " OR ";
-            }
-            $query .= " term_taxonomy_id=".$term_id[$ip]['term_id']."";
-            $ip=$ip+1;
-        }        
-        $stmt = $this->conn->prepare($query);
-        $stmt->execute();        
-        $attribute=array();
-        $row1 = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        $i=1;
-        foreach($row1 as $key=>$value){
-            $attribute[$i][] = $value['object_id'];
-            $i=$i+1;
-        }
-        if(empty($this->brand1[0]['term_id'])){ 
-            $query = "SELECT term_id FROM " .$this->table_terms. " WHERE ";
-            $ip=0;
-            foreach ($this->brand as $key => $value) {
-                if($ip!=0){
-                    $query .= " OR ";
-                }
-                $query .= " name='".$this->brand[$ip]."'";
-                $ip=$ip+1;
-            } 
-            $stmt = $this->conn->prepare($query);
-            $stmt->execute();
-            $attribute=array();
-            $row1 = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            $term_id=($row1);
-                    
-        }else{
-            $i=0;
-            foreach ($this->brand1 as $key => $value) {  
-                $term_id[$i]['term_id'] = $value['term_id'];
-                $i++;
-            }  
-           
-        }
-        $query = "SELECT object_id FROM " .$this->table_term_relationships. " WHERE ";
-        $ip=0;
-        foreach ($term_id as $key => $value) {
-            if($ip!=0){
-                $query .= " OR ";
-            }
-            $query .= "term_taxonomy_id=".$term_id[$ip]['term_id']."";
-            $ip=$ip+1;
-        } 
-        $stmt = $this->conn->prepare($query);
-        $stmt->execute();
-        $attribute=array();
-        $row1 = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        $i=1;
-        foreach($row1 as $key=>$value){  
-            $attribute[$i][] = $value['object_id'];                       
-            $i=$i+1;
-        }
-        if(empty($this->size1[0]['term_id'])){
-            $query = "SELECT term_id FROM " .$this->table_terms. " WHERE ";
-            $ip=0;
-            foreach ($this->size as $key => $value) {
-                if($ip!=0){
-                    $query .= " OR ";
-                }
-                $query .= "name='".$this->size[$ip]."'";
-                $ip=$ip+1;
-            }      
-            $stmt = $this->conn->prepare($query);
-            $stmt->execute();
-            $attribute=array();
-            $row10 = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            $term_id=($row10);
-        } else {                    
-                $i=0;
-                foreach ($this->size1 as $key => $value) {   
-                    $term_id[$i]['term_id'] = $value['term_id'];
-                    $i++;
-                }  
-            }                   
-        $query = "SELECT object_id FROM " .$this->table_term_relationships. " WHERE ";
-        $ip=0;
-        foreach ($term_id as $key => $value) {
-            if($ip!=0){
-                $query .= " OR ";
-            }
-            $query .= " term_taxonomy_id=".$term_id[$ip]['term_id']."";
-            $ip=$ip+1;
-        }                    
-        $stmt = $this->conn->prepare($query);
-        $stmt->execute();                    
-        $attribute=array();
-        $row3 = $stmt->fetchAll(PDO::FETCH_ASSOC);                    
-        $i=1;
-        foreach($row3 as $key=>$value){
-            $attribute[$i][] = $value['object_id'];
-                       
-            $i=$i+1;
-        }
-        $r=array();
-        $r1=array();
-        $r3=array();
-        $i=0;
-        foreach ($row as $key => $value) {
-            $r[]=$row[$i]['post_id'];$i=$i+1;
-        }
-        $i=0;
-        foreach ($row1 as $key => $value) {
-            $r1[]=$row1[$i]['object_id'];$i=$i+1;
-        }
-        $i=0;
-        foreach ($row3 as $key => $value) {
-            $r3[]=$row3[$i]['object_id'];$i=$i+1;
-        }
-        $t=array();
-        //print_r($r);
-        //print_r($r1);
-        //print_r($r3);
-        $cr=count($r);
-        $cr1=count($r1);
-        $cr3=count($r3);
-        for($i=0;$i<$cr;$i++){
-            //a:
-            for($j=0;$j<$cr1;$j++){
-                if($r[$i]==$r1[$j]){
-                    for($k=0;$k<$cr3;$k++){
-                        if($r1[$j]==$r3[$k]){
-                            $t[]=$r3[$k];
-                            break;
-                        }
-                    }
-                }
-            }
-        }
         if($this->popularity == 'most_sold') {
             $i=0;
-            foreach ($t as $key => $value) {
-                $total[$i]['key'] = $value;
-                $total_sales = get_post_meta($value,'total_sales');
+            foreach ($results as $key => $value) {
+                $total[$i]['key'] = $value->ID;
+                $total_sales = get_post_meta($value->ID,'total_sales');
                 $total[$i]['total_sales'] = $total_sales[0];
                 $i++;
-            }   
+            } 
 
             $sort_sold = array_column($total, 'total_sales');
 
-            array_multisort($sort_sold, SORT_DESC, $total);
-                           
+            array_multisort($sort_sold, SORT_DESC, $total); 
+
             $j=0;
             foreach ($total as $key1 => $value1) {
-                $t[$j] = $value1['key'];
+                $data[$j] = $value1['key'];
                 $j++; 
-            }   
-            return $t;
+            }  
 
+            return $data;
         } else {
-                return $t;
+            $j=0;
+            foreach ($results as $key1 => $value1) {
+                $data[$j] = $value1->ID;
+                $j++; 
             } 
+            return $data;
+        }
     }
 
    public function getallproduct($productid){ 

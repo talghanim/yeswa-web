@@ -37,13 +37,15 @@ if($_SERVER['REQUEST_METHOD'] == "POST"){
 		$user->username = str_replace(" ","_",$username); 
 		$user->user_firstname = $user_name[0];
 		$user->user_lastname = $user_name[1];
-		
+
+		$user->country = (isset($data['country']) && !empty($data['country'])) ? $data['country'] : '' ;
 
 		if($user->userpassword === $user->usercpassword){
 			if (filter_var($user->useremail, FILTER_VALIDATE_EMAIL)) {
 				$query = "SELECT * FROM ".$table_namemeta." WHERE meta_key='billing_phone' AND meta_value='".$user->user_phone."'"; 
 	            $stmt = $db->prepare($query); 
 	            $stmt->execute();
+	            
 	            if($stmt->rowCount() == 0) {
 					$result = $user->create_user(); 
 					if($result){ 
@@ -54,8 +56,7 @@ if($_SERVER['REQUEST_METHOD'] == "POST"){
 					        "end point" => $endpoint1[0],
 					        "user_info" => $result,
 					    );					   
-					}
-					else { 
+					} else { 
 					 		$user_arr=array(
 						        "status" => false,
 						        "message" => "Failed to signup!!",
