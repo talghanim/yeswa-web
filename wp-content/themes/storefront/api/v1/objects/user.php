@@ -71,8 +71,7 @@ class User{
 
             update_user_meta( $user_id, 'first_name', $this->user_firstname);
             update_user_meta( $user_id, 'last_name', $this->user_lastname);
-            update_user_meta( $user_id, 'billing_country', $this->country);
-            update_user_meta( $user_id, 'shipping_country', $this->country);
+            update_user_meta( $user_id, 'country_code', $this->country_code);
             
             $query = "INSERT INTO " . $this->table_namemeta . " (user_id,meta_key,meta_value) VALUES (".$user_id .",'billing_phone','".$this->user_phone."')";
             $stmt1 = $this->conn->prepare($query);
@@ -86,7 +85,7 @@ class User{
             $user_info[user_registered] = $user->user_registered;
             $user_info[display_name] = $user->display_name;
             $user_info[mobile] = $this->user_phone;
-            $user_info[country] = $this->country;
+            $user_info[country] = $this->country_code;
 
             $query = "SELECT * FROM ".$this->table_device_info. " ";
             $stmt = $this->conn->prepare($query);
@@ -352,7 +351,7 @@ class User{
                 $edit_profile_output['user_email'] = $user_data->data->user_email;
                 $edit_profile_output['bio'] = get_user_meta($this->fid, 'description', true);
                 $edit_profile_output['mobile'] = get_user_meta($this->fid, 'billing_phone', true);
-                $edit_profile_output['country'] = get_user_meta($this->fid, 'billing_country', true);
+                $edit_profile_output['country_code'] = get_user_meta($this->fid, 'country_code', true);
 
                 $query = "SELECT * FROM " . $this->table_profile_detail  . " WHERE user_id=".$this->fid." LIMIT 1 ";
                 $stmt = $this->conn->prepare($query); 
@@ -574,7 +573,7 @@ class User{
             $user_data['email'] = $user_info->data->user_email;
             $user_data['description'] = get_user_meta($this->fid, 'description', true);
             $user_data['billing_phone'] = get_user_meta($this->fid, 'billing_phone', true);
-            $user_data['country'] = get_user_meta($this->fid, 'billing_country', true);
+            $user_data['country_code'] = get_user_meta($this->fid, 'country_code', true);
 
             $query = "SELECT a_image_url FROM " . $this->table_profile_detail. " WHERE user_id=".$this->fid."";
             $stmt = $this->conn->prepare($query);

@@ -38,7 +38,7 @@ if($_SERVER['REQUEST_METHOD'] == "POST"){
 		$user->user_firstname = $user_name[0];
 		$user->user_lastname = $user_name[1];
 
-		$user->country = (isset($data['country']) && !empty($data['country'])) ? $data['country'] : '' ;
+		$user->country_code = (isset($data['country_code']) && !empty($data['country_code'])) ? $data['country_code'] : '' ;
 
 		if($user->userpassword === $user->usercpassword){
 			if (filter_var($user->useremail, FILTER_VALIDATE_EMAIL)) {
