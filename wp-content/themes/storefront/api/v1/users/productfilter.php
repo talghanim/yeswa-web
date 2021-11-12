@@ -33,9 +33,46 @@ if($_SERVER['REQUEST_METHOD'] == "GET"){
         $user->uid = isset($_GET['uid']) ? $_GET['uid'] : '' ;
         $user->minprice = (isset($_GET['minprice']) && !empty($_GET['minprice'])) ? $_GET['minprice'] : '' ;
         $user->maxprice = (isset($_GET['maxprice']) && !empty($_GET['maxprice'])) ? $_GET['maxprice'] : '' ;
-        $user->color = (isset($_GET['color']) && !empty($_GET['color'])) ? $_GET['color'] : array() ;
-        $user->size = (isset($_GET['size']) && !empty($_GET['size'])) ? $_GET['size'] : array() ;
-        $user->brand = (isset($_GET['brand']) && !empty($_GET['brand'])) ? $_GET['brand'] : array() ;
+
+        $color = (isset($_GET['color']) && !empty($_GET['color'])) ? $_GET['color'] : array();
+
+        if(!empty($color)) {
+            $colors = array();
+            foreach ($color as $key => $value) {
+                if(!empty($value)) {
+                    $colors[] = $value;
+                }
+            }
+        }
+
+        $user->color = $colors;
+
+        $size = (isset($_GET['size']) && !empty($_GET['size'])) ? $_GET['size'] : array();
+        
+        if(!empty($size)) {
+            $sizes = array();
+            foreach ($size as $key => $value) {
+                if(!empty($value)) {
+                    $sizes[] = $value;
+                }
+            }
+        }
+
+        $user->size = $sizes;
+
+        $brand = (isset($_GET['brand']) && !empty($_GET['brand'])) ? $_GET['brand'] : array();
+
+        if(!empty($size)) {
+            $brands = array();
+            foreach ($brand as $key => $value) {
+                if(!empty($value)) {
+                    $brands[] = $value;
+                }
+            }
+        }
+
+        $user->brand = $brands;
+
         $user->popularity = (isset($_GET['popularity']) && !empty($_GET['popularity'])) ? $_GET['popularity'] : 'none' ;   
 
         $productdetailfetch=array();
