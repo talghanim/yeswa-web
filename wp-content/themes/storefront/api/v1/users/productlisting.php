@@ -40,10 +40,11 @@ if($_SERVER['REQUEST_METHOD'] == "GET"){
                 "message" => "Item found!",
                 "request url" => 'BaseUrl/'. $endpoint.'?'.$requesturl[1],
                 "end point" => $endpoint1[0],
-                "body" => $result,
+                "body" => $result['data'],
+                "total_record" => $result['total_record'],
+                "total_pages" => $result['total_pages'],
             );
-        }
-        else {
+        } else {
             $user_arr=array(
                 "status" => false,
                 "message" => "Item not found!",
@@ -51,22 +52,22 @@ if($_SERVER['REQUEST_METHOD'] == "GET"){
                 "end point" => $endpoint1[0],
 				"body" => $result,
             );
-    }
+        }
     } else {
         $user_arr=array(
-                    "status" => false,
-                    "message" => "User not found!!",
-                    "request url" => 'BaseUrl/'. $endpoint.'?'.$requesturl[1],
-                    "end point" => $endpoint1[0],
-                );
+            "status" => false,
+            "message" => "User not found!!",
+            "request url" => 'BaseUrl/'. $endpoint.'?'.$requesturl[1],
+            "end point" => $endpoint1[0],
+        );
     }
 } else {
     $user_arr = array(
-                    "status" => false,
-                    "message" => "Undefined access method!!",
-                    "request url" => 'BaseUrl/'. $endpoint.'?'.$requesturl[1],
-                    "end point" => $endpoint1[0],
-                );
+        "status" => false,
+        "message" => "Undefined access method!!",
+        "request url" => 'BaseUrl/'. $endpoint.'?'.$requesturl[1],
+        "end point" => $endpoint1[0],
+    );
 }
 // make it json format
 print_r(json_encode($user_arr));

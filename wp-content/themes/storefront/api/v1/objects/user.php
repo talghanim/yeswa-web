@@ -1438,56 +1438,42 @@ class User{
         $query1 = "SELECT ID FROM " . $this->table_name . " WHERE ID=".$this->uid."";
         $stmt1 = $this->conn->prepare($query1);
         $stmt1->execute();
-            if($stmt1) {
-                $query = "SELECT post_title,ID FROM ".$this->table_posts." WHERE post_type='product' AND post_status='publish'";
-                //print_r($query);
-                $stmt = $this->conn->prepare($query);
-                $stmt->execute();
-                //print_r($stmt);
-                $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-                //print_r($row);
-                $result = $this->productlist($rows); 
-                $i=0;
-                foreach ($result as $key => $value) {
-                     $results[$i][p_id] = $value[p_id];
-                     $results[$i][p_title] = $value[p_title];
 
-                     $results[$i][_price] = $value[_price];
-                     /*if(empty($value[_price])){
-                        $results[$i][_price] = "0.000KD";
-                     }*/
-                     $results[$i][_regular_price] = $value[_regular_price];
-                     /*if(empty($value[_regular_price])){
-                        $results[$i][_regular_price] = "0.000KD";
-                     }*/
-                     $results[$i][_sale_price] = $value[_sale_price];
-                     /*if(empty($value[_sale_price])){
-                        $results[$i][_sale_price] = "0.000KD";
-                     }*/
-                     $results[$i][img_links] = $value[img_links];
-                     $i++;
-                 } 
-                    $products_per_page = 12;
-                    $total_products = count($results);  
-                    $totalPages = ceil($total_products / $products_per_page);   
-                        if($this->page < 1){
-                            $this->page = 1;
-                        } else if($this->page > $totalPages){
-                            $emptyArray = []; 
-                            return $emptyArray;
-                            } 
+        if(!empty($stmt1)) {
+            $data_query = array();
+            $data_query['post_type'] = array('product');
+            $data_query['post_status'] = array('publish');
+            $data_query['posts_per_page'] = 12;
+            $data_query['page'] = $this->page;
+            $data_query['order'] = 'DESC';
+            $data_query['orderby'] = 'ID';
 
-                        $start_porduct = ($this->page - 1) * $products_per_page;
-                        $j=0;
-                        for($i=$start_porduct; $i<($start_porduct+$products_per_page); $i++){ 
-                            if($i == $total_products){
-                                break;
-                            }
-                            $output[$j] = $results[$i];
-                            $j++;
-                        }
-                        return $output;
+            if(!empty($this->find)) {
+                $data_query['s'] = $this->find;
             }
+
+            $products = new WP_Query( $data_query );
+
+            $results['total_record'] = $products->found_posts;
+            $results['total_pages'] = $products->max_num_pages;
+
+            if(!empty($products->posts)) {
+                $i=0;
+                foreach ($products->posts as $key => $value) {
+                    $results['data'][$i]['p_id'] = $value->ID;
+                    $results['data'][$i]['p_title'] = $value->post_title;
+                    $results['data'][$i]['_price'] = get_post_meta($value->ID, '_price', true ).get_option('woocommerce_currency');
+                    $results['data'][$i]['_regular_price'] = get_post_meta($value->ID, '_regular_price', true ).get_option('woocommerce_currency');
+                    $results['data'][$i]['_sale_price'] = get_post_meta($value->ID, '_sale_price', true ).get_option('woocommerce_currency');
+
+                    $j=0;
+                    $results['data'][$i]['img_links'][$j]['img_links'] = wp_get_attachment_url( get_post_thumbnail_id($value->ID) );
+                    $i++;
+                }
+            }
+            
+            return $results;
+        }
     }
     function productcategorylisting($uid,$categories){
         //print_r($this->categories);
