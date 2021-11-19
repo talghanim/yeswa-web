@@ -1443,7 +1443,7 @@ class User{
             $data_query['post_type'] = array('product');
             $data_query['post_status'] = array('publish');
             $data_query['posts_per_page'] = 12;
-            $data_query['page'] = $this->page;
+            $data_query['paged'] = $this->page;
             $data_query['order'] = 'DESC';
             $data_query['orderby'] = 'ID';
 
