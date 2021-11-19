@@ -2499,6 +2499,7 @@ class User{
                         $vendor_detail[0][show_location] = "";
                         $vendor_detail[0][address] = "";
                     }            
+                $vendor_detail[0][country_code] = get_user_meta( $this->v_id, 'country_code', true);
                 
                 //print_r($vendor_detail); 
                 return $vendor_detail;
@@ -2573,6 +2574,9 @@ class User{
                     $stmt5 = $this->conn->prepare($query5); print_r($stmt5);
                     $result = $stmt5->execute();
                 }  
+                if(!empty($this->country_code)){
+                    update_user_meta( $this->uid, 'country_code', $this->country_code);
+                }
                  
                 /*
                 $vendor_data = 'a:12:{s:5:"notes";s:0:"";s:4:"logo";s:0:"";s:7:"profile";s:0:"";s:5:"email";s:'.strlen($this->user_email).':"'.$this->user_email.'";s:10:"commission";s:0:"";s:15:"commission_type";s:10:"percentage";s:6:"paypal";s:0:"";s:8:"timezone";s:5:"UTC+3";s:15:"enable_bookings";s:2:"no";s:20:"per_product_shipping";s:2:"no";s:14:"instant_payout";s:2:"no";s:6:"admins";a:0:{}}';
