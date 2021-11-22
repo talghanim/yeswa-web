@@ -88,6 +88,7 @@ if($_SERVER['REQUEST_METHOD'] == "GET"){
 		$user->a_civil_id = $_POST[civil_id];
 		$user->a_gender = $_POST[gender];
 		$user->a_birthdate = $_POST[birthdate];
+		$user->country_code = $_POST[country_code];
 		for ($i=1; $i < 100 ; $i++) { 
 			if(!empty($_FILES[image.$i])){
 					$user->image[$i]=$_FILES[image.$i];
