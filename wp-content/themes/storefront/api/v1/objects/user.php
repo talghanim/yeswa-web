@@ -1027,9 +1027,11 @@ class User{
                 } //print_r($result2);
                 //return $result2;
                 //print_r($this->productid);
+                if(!empty($this->cart[cart_items])){
                 foreach($this->cart[cart_items] as $key => $value){
                     if($value['product_id'] == $this->productid)
                         $result2[0]['_stock'] = $result2[0]['_stock'] - $value['quantity'];
+                }
                 }
 
                 $product_img_url[0][img_links] = (wp_get_attachment_url( get_post_thumbnail_id($this->productid) )); 
