@@ -2431,6 +2431,7 @@ class User{
                             $stmt = $this->conn->prepare($query);
                             $stmt->execute();
             }
+            update_user_meta($user_id[ID],'country_code',$this->country_code);
             $query = "INSERT INTO " . $this->table_device_info . "(user_id,device_id,device_type) VALUES (".$user_id[ID] .",'".$this->device_id."','".$this->device_type."')";
             $stmt = $this->conn->prepare($query);
             $stmt->execute(); 
@@ -2443,6 +2444,7 @@ class User{
 			$vendor_info['gender'] = $vendor_detail[0]['a_gender'];
 			$vendor_info['birthdate'] = $vendor_detail[0]['a_birthdate'];
 			$vendor_info['address'] = $vendor_detail[0]['a_address'];
+            $vendor_info['country_code'] = get_user_meta($user_id[ID],'country_code',true);
 			/*$vendor_info['birthdate'] = $vendor_detail[0]['a_birthdate'];
 			$vendor_info['birthdate'] = $vendor_detail[0]['a_birthdate'];*/
             return $vendor_info;
