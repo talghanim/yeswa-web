@@ -40,6 +40,7 @@ if($_SERVER['REQUEST_METHOD'] == "POST"){
 				$user->a_birthdate = $data['birthdate'];
 				$user->a_address = $data['address'];
 				$user->show_location = $data['show_location']; 
+				$user->country_code = $data['country_code'];
 
 				$ch = curl_init();
 	            $address = str_replace('&','',str_replace('#','',$user->a_address));
