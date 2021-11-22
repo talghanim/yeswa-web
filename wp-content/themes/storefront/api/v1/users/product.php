@@ -34,6 +34,7 @@ if($_SERVER['REQUEST_METHOD'] == "GET"){
         $user->uid = isset($_GET['uid']) ? $_GET['uid'] : die();
         $user->productid = isset($_GET['productid']) ? $_GET['productid'] : die();
         $user->display_full = isset($_GET['display_full']) ? $_GET['display_full'] : die();
+        $user->cart = $user->cart();
            if($results = $user->product()) {
             //$data = $results->fetchAll(PDO::FETCH_ASSOC);
             //print_r($results);
