@@ -346,8 +346,8 @@ class User{
 
             if(!empty($user_data)) {
                 $edit_profile_output['uid'] = $user_data->data->ID;
-                $edit_profile_output['full_name'] = $user_data->data->display_name;
-                $edit_profile_output['user_name'] = $user_data->data->user_login;
+                $edit_profile_output['full_name'] = $user_data->data->user_login;
+                $edit_profile_output['user_name'] = $user_data->data->display_name;
                 $edit_profile_output['user_email'] = $user_data->data->user_email;
                 $edit_profile_output['bio'] = get_user_meta($this->fid, 'description', true);
                 $edit_profile_output['mobile'] = get_user_meta($this->fid, 'billing_phone', true);
