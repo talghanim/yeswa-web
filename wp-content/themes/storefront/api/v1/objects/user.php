@@ -1673,8 +1673,10 @@ class User{
                         'status' => $val
                     ];
                     $order_des = $woocommerce->get('orders',$query);
-                    if(!empty($order_des))
-                    $order = array_merge($order, $order_des);
+                    if(empty($order) && !empty($order_des[0]->id))
+                        $order = $order_des;
+                    else if(!empty($order_des[0]->id))
+                    $order = array_merge($order_des, $order);
                 }
             }
             if($this->orderstatus != 'all') {
