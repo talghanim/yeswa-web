@@ -1662,8 +1662,22 @@ class User{
                 $status = 'refunded';
             } else if($this->orderstatus == 'failed') {
                 $status = 'failed';
+            } else if($this->orderstatus == 'all') {
+                $status = array( 'failed','refunded','pending','cancelled' );
+                foreach($status as $val){
+                    $order_des = array();
+                    $query = [
+                        'customer' => $this->uid,
+                        'per_page' =>100,
+                        'filter[meta]' => true,
+                        'status' => $val
+                    ];
+                    $order_des = $woocommerce->get('orders',$query);
+                    if(!empty($order_des))
+                    $order = array_merge($order, $order_des);
+                }
             }
-            
+            if($this->orderstatus != 'all') {
             $query = [
                 'customer' => $this->uid,
                 'per_page' =>100,
@@ -1671,6 +1685,7 @@ class User{
                 'status' => $status
             ];
             $order = $woocommerce->get('orders',$query); 
+            }
             //echo "<pre>"; print_r($order); die;
             foreach ($order as $key => $value) { 
                 if($value->total){
