@@ -230,9 +230,9 @@ class User{
                 wp_set_password( $random_password, $user->ID );
                 
                 $to = $this->femail;
-                $subject = 'Yeswa key to reset password';
+                $subject = 'Neswa key to reset password';
                 //$body = $response1->shortLink;  // previewLink
-                $body = '<p>Hi,</p><p>Your key to reset password for Yeswa app is: '.$random_password.'<br></p><p>Regards<br>All at Yeswa</p>';
+                $body = '<p>Hi,</p><p>Your key to reset password for Neswa app is: '.$random_password.'<br></p><p>Regards<br>All at Neswa</p>';
                 $headers1 = array('Content-Type: text/html; charset=UTF-8');
 
                 wp_mail( $to, $subject, $body, $headers1 );
@@ -258,9 +258,9 @@ class User{
                 wp_set_password( $random_password, $user->ID );
                 
                 $to = $this->femail;
-                $subject = 'Yeswa key to reset password';
+                $subject = 'Neswa key to reset password';
                 //$body = $response1->shortLink;  // previewLink
-                $body = '<p>Hi,</p><p>Your key to reset password for Yeswa app is: '.$random_password.'<br></p><p>Regards<br>All at Yeswa</p>';
+                $body = '<p>Hi,</p><p>Your key to reset password for Neswa app is: '.$random_password.'<br></p><p>Regards<br>All at Neswa</p>';
                 $headers1 = array('Content-Type: text/html; charset=UTF-8');
 
                 wp_mail( $to, $subject, $body, $headers1 );
