@@ -8,8 +8,8 @@ date_default_timezone_set('Asia/Manila');
 // variables used for jwt
 //$url = get_option('siteurl');	
 $key = "example_key";
-$iss = 'http://yeswa.theclientdemos.com';		 
-$aud = 'http://yeswa.theclientdemos.com';
+$iss = 'https://neswaapp.com';		 
+$aud = 'https://neswaapp.com';
 $iat = time();			
 $nbf = ($iat + 2);
 // expire token after 3month from the date of creation   	
