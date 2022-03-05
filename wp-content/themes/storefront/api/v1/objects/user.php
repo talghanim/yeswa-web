@@ -1589,7 +1589,7 @@ class User{
                 $row=array();
                 $i=0; 
                 foreach($ids as $key=>$value){
-                    $query ="SELECT meta_key,meta_value,post_id FROM " .$this->table_postmeta." WHERE post_id=" .$value." AND meta_key IN ('_price','_regular_price','_sale_price')"; 
+                    $query ="SELECT meta_key,meta_value,post_id FROM " .$this->table_postmeta." WHERE post_id=" .$value." AND meta_key IN ('_price','_regular_price','_sale_price','_product_attributes')"; 
                     $stmt = $this->conn->prepare($query);
                     $stmt->execute();
                     $row[$i] = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -1598,7 +1598,13 @@ class User{
                 $i=0;
                 foreach ($row as $key => $value) {
                     foreach($value as $key1=>$value1){
+                        $brand = '';
+                        if($value1[meta_key] == '_product_attributes'){
+                            $meta_val = maybe_unserialize($value1[meta_value]);
+                            $alldetail['_brand'] = $meta_val[pa_brand][value];
+                        } else {
                         $alldetail[$value1[meta_key]]= $value1[meta_value].get_option('woocommerce_currency');
+                        }
                         $alldetail[p_id]= $value1[post_id];
 
                     } //print_r($alldetail);
