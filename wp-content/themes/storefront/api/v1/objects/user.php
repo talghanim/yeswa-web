@@ -1549,6 +1549,7 @@ class User{
                 foreach($row as $key=>$value){
                     $description[$i]['p_title']=($value[post_title]); 
                     $description[$i]['p_id']=($value[ID]);
+                    $description[$i]['post_author']=($value[post_author]);
                     $ids[$i] = $value[ID];
                    $i++;     
                 } 
@@ -1567,11 +1568,13 @@ class User{
                         
                         if (strpos($title[$i], $find_string) !== false) {
                             $id[$i] = $value[p_id];
-                            $description_title[p_title] = ($value[p_title]);  
+                            $description_title[p_title] = ($value[p_title]);
+                            $desc_post_author[post_author]=($value[post_author]);  
 
                         }  
                         $description[$i]['p_title'] = $description_title[p_title];
-                        $description[$i]['p_id'] =  $id[$i];  
+                        $description[$i]['p_id'] =  $id[$i];
+                        $description[$i]['post_author'] =  $desc_post_author[post_author];  
                         $i++;
                        
                     }  
@@ -1582,6 +1585,7 @@ class User{
                     if(!empty($value['p_id'])) { 
                         $description1[$i]['p_id'] = ($value[p_id]);
                         $description1[$i]['p_title'] = ($value[p_title]);
+                        $description1[$i]['_brand'] = get_user_meta($value[post_author],'billing_company',true);
                         $i++;
                     }
                     
@@ -1600,8 +1604,12 @@ class User{
                     foreach($value as $key1=>$value1){
                         $brand = '';
                         if($value1[meta_key] == '_product_attributes'){
-                            $meta_val = maybe_unserialize($value1[meta_value]);
-                            $alldetail['_brand'] = $meta_val[pa_brand][value];
+                            // $meta_val = maybe_unserialize($value1[meta_value]);
+                            // if($meta_val[pa_brand][value] != "Uncategorized"){
+                            //     $alldetail['_brand'] = $meta_val[pa_brand][value];
+                            // } else {
+                            //     $alldetail['_brand'] = '';
+                            // }
                         } else {
                         $alldetail[$value1[meta_key]]= $value1[meta_value].get_option('woocommerce_currency');
                         }
@@ -2034,7 +2042,7 @@ class User{
         //print_r($rows);
         $res_categories = $this->productlist($rows);
         // New Arrivals
-        $query = "SELECT post_title,ID FROM ".$this->table_posts." WHERE post_type='product' AND post_status='publish' ORDER BY post_date DESC";
+        $query = "SELECT post_title,ID,post_author FROM ".$this->table_posts." WHERE post_type='product' AND post_status='publish' ORDER BY post_date DESC";
         if($newarrival == 0){
             $query = $query." LIMIT 12";
         }
@@ -4449,8 +4457,9 @@ function map() {
             $result = $woocommerce->get('products/categories',$query);
         }   
         $i=0;
+        $ids = array();
         foreach ($result as $key => $value) {  
-            $output[$i][id] = $value->id;
+            $ids[$i] = $output[$i][id] = $value->id;
             $output[$i][name] = $value->name;
             $output[$i][slug] = $value->slug;
             $output[$i][parent] = $value->parent;
@@ -4461,6 +4470,8 @@ function map() {
             $output[$i][count] = $value->count;
             $i++;
         }
+        asort($ids);
+        array_multisort($ids, SORT_ASC, SORT_NATURAL | SORT_FLAG_CASE, $output);
              return $output;
     }   
     public function order_update(){  
