@@ -4470,6 +4470,7 @@ function map() {
             $output[$i][count] = $value->count;
             $i++;
         }
+        asort($ids);
         array_multisort($ids, SORT_ASC, SORT_NATURAL | SORT_FLAG_CASE, $output);
              return $output;
     }   
