@@ -1467,6 +1467,7 @@ class User{
                 foreach ($products->posts as $key => $value) {
                     $results['data'][$i]['p_id'] = $value->ID;
                     $results['data'][$i]['p_title'] = $value->post_title;
+                    $results['data'][$i]['_brand'] = get_user_meta($value->post_author,'billing_company',true);;
                     $results['data'][$i]['_price'] = get_post_meta($value->ID, '_price', true ).get_option('woocommerce_currency');
                     $results['data'][$i]['_regular_price'] = get_post_meta($value->ID, '_regular_price', true ).get_option('woocommerce_currency');
                     $results['data'][$i]['_sale_price'] = get_post_meta($value->ID, '_sale_price', true ).get_option('woocommerce_currency');
