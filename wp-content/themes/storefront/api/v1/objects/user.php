@@ -1467,7 +1467,16 @@ class User{
                 foreach ($products->posts as $key => $value) {
                     $results['data'][$i]['p_id'] = $value->ID;
                     $results['data'][$i]['p_title'] = $value->post_title;
-                    $results['data'][$i]['_brand'] = get_user_meta($value->post_author,'billing_company',true);;
+                    $results['data'][$i]['_brand_author'] = get_user_meta($value->post_author,'billing_company',true);
+                    $brand = '';
+                    $brand = get_post_meta($value->ID, '_product_attributes', true );
+                    $brand = maybe_unserialize($brand);
+                    if($brand[pa_brand][value] != "undefined"){
+                        $results['data'][$i]['_brand'] = $brand[pa_brand][value];
+                    } else {
+                        $results['data'][$i]['_brand'] = '';
+                    }
+                     = [pa_brand][value];
                     $results['data'][$i]['_price'] = get_post_meta($value->ID, '_price', true ).get_option('woocommerce_currency');
                     $results['data'][$i]['_regular_price'] = get_post_meta($value->ID, '_regular_price', true ).get_option('woocommerce_currency');
                     $results['data'][$i]['_sale_price'] = get_post_meta($value->ID, '_sale_price', true ).get_option('woocommerce_currency');
@@ -1586,7 +1595,7 @@ class User{
                     if(!empty($value['p_id'])) { 
                         $description1[$i]['p_id'] = ($value[p_id]);
                         $description1[$i]['p_title'] = ($value[p_title]);
-                        $description1[$i]['_brand'] = get_user_meta($value[post_author],'billing_company',true);
+                        $description1[$i]['_brand_author'] = get_user_meta($value[post_author],'billing_company',true);
                         $i++;
                     }
                     
@@ -1605,12 +1614,12 @@ class User{
                     foreach($value as $key1=>$value1){
                         $brand = '';
                         if($value1[meta_key] == '_product_attributes'){
-                            // $meta_val = maybe_unserialize($value1[meta_value]);
-                            // if($meta_val[pa_brand][value] != "Uncategorized"){
-                            //     $alldetail['_brand'] = $meta_val[pa_brand][value];
-                            // } else {
-                            //     $alldetail['_brand'] = '';
-                            // }
+                            $meta_val = maybe_unserialize($value1[meta_value]);
+                            if($meta_val[pa_brand][value] != "undefined"){
+                                $alldetail['_brand'] = $meta_val[pa_brand][value];
+                            } else {
+                                $alldetail['_brand'] = '';
+                            }
                         } else {
                         $alldetail[$value1[meta_key]]= $value1[meta_value].get_option('woocommerce_currency');
                         }
