@@ -1476,7 +1476,6 @@ class User{
                     } else {
                         $results['data'][$i]['_brand'] = '';
                     }
-                     = [pa_brand][value];
                     $results['data'][$i]['_price'] = get_post_meta($value->ID, '_price', true ).get_option('woocommerce_currency');
                     $results['data'][$i]['_regular_price'] = get_post_meta($value->ID, '_regular_price', true ).get_option('woocommerce_currency');
                     $results['data'][$i]['_sale_price'] = get_post_meta($value->ID, '_sale_price', true ).get_option('woocommerce_currency');
