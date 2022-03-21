@@ -1477,6 +1477,8 @@ class User{
                         if(!empty($brand)){
                             $results['data'][$i]['_brand'] = implode(",",$brand);
                         }
+                    }else{
+                        $results['data'][$i]['_brand'] = '';
                     }
                     // $brand = '';
                     // $brand = get_post_meta($value->ID, '_product_attributes', true );
@@ -1569,6 +1571,18 @@ class User{
                     $description[$i]['p_title']=($value[post_title]); 
                     $description[$i]['p_id']=($value[ID]);
                     $description[$i]['post_author']=($value[post_author]);
+                    $pa_brand = wp_get_object_terms($value[ID],'pa_brand');
+                    if(!empty($pa_brand)){
+                        $brand = array();
+                        foreach($pa_brand as $val1){
+                            $brand[] = $val1->name;
+                        }
+                        if(!empty($brand)){
+                            $description[$i]['_brand'] = implode(",",$brand);
+                        }
+                    }else{
+                        $description[$i]['_brand'] = '';
+                    }
                     $ids[$i] = $value[ID];
                    $i++;     
                 } 
@@ -1594,6 +1608,18 @@ class User{
                         $description[$i]['p_title'] = $description_title[p_title];
                         $description[$i]['p_id'] =  $id[$i];
                         $description[$i]['post_author'] =  $desc_post_author[post_author];  
+                        $pa_brand = wp_get_object_terms($id[$i],'pa_brand');
+                        if(!empty($pa_brand)){
+                            $brand = array();
+                            foreach($pa_brand as $val1){
+                                $brand[] = $val1->name;
+                            }
+                            if(!empty($brand)){
+                                $description[$i]['_brand'] = implode(",",$brand);
+                            }
+                        }else{
+                            $description[$i]['_brand'] = '';
+                        }
                         $i++;
                        
                     }  
@@ -1605,6 +1631,18 @@ class User{
                         $description1[$i]['p_id'] = ($value[p_id]);
                         $description1[$i]['p_title'] = ($value[p_title]);
                         $description1[$i]['_brand_author'] = get_user_meta($value[post_author],'billing_company',true);
+                        $pa_brand = wp_get_object_terms($value[p_id],'pa_brand');
+                        if(!empty($pa_brand)){
+                            $brand = array();
+                            foreach($pa_brand as $val1){
+                                $brand[] = $val1->name;
+                            }
+                            if(!empty($brand)){
+                                $description1[$i]['_brand'] = implode(",",$brand);
+                            }
+                        }else{
+                            $description1[$i]['_brand'] = '';
+                        }
                         $i++;
                     }
                     
@@ -1630,6 +1668,8 @@ class User{
                             if(!empty($brand)){
                                 $alldetail['_brand'] = implode(",",$brand);
                             }
+                        }else{
+                            $alldetail['_brand'] = '';
                         }
                         if($value1[meta_key] == '_product_attributes'){
                             // $meta_val = maybe_unserialize($value1[meta_value]);
