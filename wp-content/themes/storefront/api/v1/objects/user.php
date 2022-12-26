@@ -223,7 +223,7 @@ class User{
                 $encrypt_pass = wp_hash_password($random_password);
                 //print_r($encrypt_pass); die;
                 //
-                wp_set_password( $random_password, $user->ID );
+                //wp_set_password( $random_password, $user->ID );
                 
                 $to = $this->femail;
                 $subject = 'Neswa key to reset password';
