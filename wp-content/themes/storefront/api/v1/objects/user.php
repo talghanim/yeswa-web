@@ -231,7 +231,10 @@ class User{
                 $body = '<p>Hi,</p><p>Your key to reset password for Neswa app is: '.$random_password.'<br></p><p>Regards<br>All at Neswa</p>';
                 $headers1 = array('Content-Type: text/html; charset=UTF-8');
 
-                wp_mail( $to, $subject, $body, $headers1 );
+                //wp_mail( $to, $subject, $body, $headers1 );
+                $reset_key = get_password_reset_key( $user );
+                $wc_emails = WC()->mailer()->get_emails();
+                $wc_emails['WC_Email_Customer_Reset_Password']->trigger( $user->user_login, $reset_key );
                 //return $pass_reset_link;
                 return true;
             }
