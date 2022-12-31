@@ -217,7 +217,7 @@ class User{
             $stmt->execute();
             if($stmt->rowCount() > 0){
                 $user_detail = $stmt->fetch(PDO::FETCH_ASSOC);  
-                $user = new WP_User( intval($user_detail[ID]) );
+                $user = new WP_User( intval($user_detail['ID']) );
 				//echo "<pre>"; print_r(); die;
                 $random_password = wp_generate_password( 12, false );
                 $encrypt_pass = wp_hash_password($random_password);

@@ -246,7 +246,7 @@ add_filter( 'edit_user_profile_update', 'fb_save_custom_user_profile_fields' );
 //* Password reset activation E-mail -> Body
 add_filter('gettext', 'change_lost_password' );
 function change_lost_password($translated) {
-    if(strpos($_SERVER['REQUEST_URI'], 'lost-password') !== false) {
+    if(strpos($_SERVER['REQUEST_URI'], 'lost-password') !== false || strpos($_SERVER['REQUEST_URI'], 'users/forgetpass.php') !== false) {
         if($translated === "Password Reset Request"){
             return 'Password Reset';
         }else if(strpos($translated, 'Someone has requested a new password for the following account on') !== false){
