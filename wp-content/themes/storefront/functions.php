@@ -242,3 +242,23 @@ add_filter( 'edit_user_profile', 'fb_add_custom_user_profile_fields' );
 
 add_filter( 'personal_options_update', 'fb_save_custom_user_profile_fields' );
 add_filter( 'edit_user_profile_update', 'fb_save_custom_user_profile_fields' );
+
+//* Password reset activation E-mail -> Body
+add_filter('gettext', 'change_lost_password' );
+function change_lost_password($translated) {
+    if(strpos($_SERVER['REQUEST_URI'], 'lost-password') !== false || strpos($_SERVER['REQUEST_URI'], 'users/forgetpass.php') !== false) {
+        if($translated === "Password Reset Request"){
+            return 'Password Reset';
+        }else if(strpos($translated, 'Someone has requested a new password for the following account on') !== false){
+            //error_log($translated);
+            return str_replace('Someone has requested a new password for the following account on',"If you've lost your password or wish to reset it, use the link below to get startted ",$translated);
+        }else if($translated === "If you didn't make this request, just ignore this email. If you'd like to proceed:"){
+            return "If you did not request a password reset, you can safely ignore this email.";
+        }else if($translated === 'Click here to reset your password'){
+            return 'Password Reset';
+        }else if($translated === 'Thanks for reading.'){
+            return 'Thank you,<br>'.get_bloginfo( 'name' ).' Team';
+        }
+    }
+    return $translated; 
+}
